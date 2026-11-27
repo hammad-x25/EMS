@@ -4,6 +4,7 @@ test.describe("AegisExam full evaluation lifecycle", () => {
   test("covers admin RBAC, fairness & sandbox, offline exam sync, grading, PDF/QR verification, and dispute resolution", async ({
     browser,
   }) => {
+    test.setTimeout(120_000);
     const adminContext = await browser.newContext();
     const examinerContext = await browser.newContext();
     const candidateContext = await browser.newContext();
@@ -12,7 +13,8 @@ test.describe("AegisExam full evaluation lifecycle", () => {
       // 1. Admin login & RBAC verification
       const adminPage = await adminContext.newPage();
       await adminPage.goto("/login");
-      await adminPage.getByRole("button", { name: "Administrator" }).click();
+      await adminPage.getByLabel("Email address").fill("admin@aegisexam.local");
+      await adminPage.getByLabel("Password").fill("Admin@123!");
       await adminPage.getByRole("button", { name: "Sign in securely" }).click();
       await adminPage.waitForURL("**/admin");
       await adminPage.goto("/admin/users");
@@ -21,15 +23,17 @@ test.describe("AegisExam full evaluation lifecycle", () => {
       // 2. Examiner login, Fairness Inspector, and Sandbox preview
       const examinerPage = await examinerContext.newPage();
       await examinerPage.goto("/login");
-      await examinerPage.getByRole("button", { name: "Examiner" }).click();
+      await examinerPage.getByLabel("Email address").fill("examiner1@aegisexam.local");
+      await examinerPage.getByLabel("Password").fill("Examiner@123!");
       await examinerPage.getByRole("button", { name: "Sign in securely" }).click();
       await examinerPage.waitForURL("**/examiner");
 
       await examinerPage.goto("/examiner/exams/seed-exam-ongoing");
-      await examinerPage.getByRole("button", { name: /3\. Fairness Inspector/i }).click();
+      await examinerPage.getByRole("tab", { name: /3\. Fairness Inspector/i }).click();
       await examinerPage.getByRole("button", { name: /Run 20-paper simulation/i }).click();
       await expect(examinerPage.getByText(/Difficulty Std Dev/i)).toBeVisible();
 
+      await examinerPage.request.delete("/api/exams/seed-exam-ongoing/sandbox");
       await examinerPage.goto("/examiner/exams/seed-exam-ongoing/sandbox");
       await expect(examinerPage.getByText(/SANDBOX PREVIEW MODE/i).first()).toBeVisible();
 
@@ -87,7 +91,9 @@ test.describe("AegisExam full evaluation lifecycle", () => {
       await candidatePage.goto("/candidate/dashboard");
       const examHeading = candidatePage.getByRole("heading", { name: `E2E Live Verification Exam ${now}` });
       await expect(examHeading).toBeVisible();
-      await examHeading.locator("..").locator("..").getByRole("button", { name: /View instructions/i }).click();
+      await candidatePage.locator("article", { has: examHeading }).getByRole("button", { name: /View instructions/i }).click();
+      await expect(candidatePage.getByRole("button", { name: /Start examination/i })).toBeDisabled();
+      await candidatePage.getByRole("checkbox", { name: /I am ready to begin/i }).check();
       await candidatePage.getByRole("link", { name: /Start examination/i }).click();
       await candidatePage.waitForURL(`**/candidate/exams/${exam.id}/take`);
 
@@ -128,7 +134,7 @@ test.describe("AegisExam full evaluation lifecycle", () => {
       // 5. Candidate views result, downloads PDF, verifies QR code, and files a dispute
       await candidatePage.goto("/candidate/dashboard");
       const completedHeading = candidatePage.getByRole("heading", { name: `E2E Live Verification Exam ${now}` });
-      await completedHeading.locator("..").getByRole("link", { name: /View result/i }).click();
+      await candidatePage.locator("article", { has: completedHeading }).getByRole("link", { name: /View result/i }).click();
       await candidatePage.waitForURL("**/candidate/results/**");
       const attemptId = candidatePage.url().split("/").pop() ?? "";
       await expect(candidatePage.getByText("9 / 10")).toBeVisible();

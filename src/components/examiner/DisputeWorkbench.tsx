@@ -4,17 +4,14 @@ import { DisputeStatus } from "@prisma/client";
 import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
 import { CheckCircle2, Clock, ExternalLink, Scale, ShieldAlert } from "lucide-react";
+import { AlertBanner } from "@/components/ui/AlertBanner";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { FormField } from "@/components/ui/FormField";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { DisputeDto } from "@/lib/dispute-types";
+import { parseApiError, readApiJson } from "@/lib/form-errors";
 
 type OutcomeChoice = "RESOLVED_UPHELD" | "RESOLVED_ADJUSTED" | "REJECTED";
-
-const STATUS_STYLE: Record<DisputeStatus, string> = {
-  OPEN: "bg-amber-50 text-amber-800",
-  UNDER_REVIEW: "bg-indigo-50 text-indigo-700",
-  RESOLVED_UPHELD: "bg-slate-100 text-slate-700",
-  RESOLVED_ADJUSTED: "bg-emerald-50 text-emerald-700",
-  REJECTED: "bg-rose-50 text-rose-700",
-};
 
 export function DisputeWorkbench({ initialDisputes }: { initialDisputes: DisputeDto[] }) {
   const [disputes, setDisputes] = useState<DisputeDto[]>(initialDisputes);
@@ -26,13 +23,13 @@ export function DisputeWorkbench({ initialDisputes }: { initialDisputes: Dispute
   const [adjustedManualScore, setAdjustedManualScore] = useState("0");
   const [scoreDelta, setScoreDelta] = useState("1");
   const [resolutionNote, setResolutionNote] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const [busy, setBusy] = useState(false);
   const [banner, setBanner] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const filtered = useMemo(
-    () =>
-      disputes.filter((item) => statusFilter === "ALL" || item.status === statusFilter),
+    () => disputes.filter((item) => statusFilter === "ALL" || item.status === statusFilter),
     [disputes, statusFilter],
   );
 
@@ -44,6 +41,7 @@ export function DisputeWorkbench({ initialDisputes }: { initialDisputes: Dispute
   function selectDispute(item: DisputeDto) {
     setActiveId(item.id);
     setBanner(null);
+    setFieldErrors({});
     setResolutionNote(item.resolutionNote ?? "");
     if (item.question && item.question.type === "WRITTEN") {
       setAdjustMode("manual");
@@ -63,12 +61,9 @@ export function DisputeWorkbench({ initialDisputes }: { initialDisputes: Dispute
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ outcome: "UNDER_REVIEW" }),
       });
-      const body = (await response.json()) as {
-        dispute?: DisputeDto;
-        error?: { message?: string };
-      };
-      if (!response.ok || !body.dispute) {
-        throw new Error(body.error?.message ?? "Failed to update dispute");
+      const body = await readApiJson<{ dispute?: DisputeDto; error?: { message?: string } }>(response);
+      if (!response.ok || !body?.dispute) {
+        throw new Error(parseApiError(body, "Failed to update dispute").message);
       }
       setDisputes((current) =>
         current.map((item) => (item.id === body.dispute!.id ? body.dispute! : item)),
@@ -89,6 +84,7 @@ export function DisputeWorkbench({ initialDisputes }: { initialDisputes: Dispute
     if (!selected) return;
     setBusy(true);
     setBanner(null);
+    setFieldErrors({});
 
     const payload: Record<string, unknown> = {
       outcome,
@@ -109,25 +105,21 @@ export function DisputeWorkbench({ initialDisputes }: { initialDisputes: Dispute
         headers: { "content-type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const body = (await response.json()) as {
+      const body = await readApiJson<{
         dispute?: DisputeDto;
-        updatedTotalScore?: number | null;
-        verification?: { code: string; version: number } | null;
-        error?: { message?: string };
-      };
-      if (!response.ok || !body.dispute) {
-        throw new Error(body.error?.message ?? "Resolution failed");
+        error?: { message?: string; details?: unknown };
+      }>(response);
+      if (!response.ok || !body?.dispute) {
+        const parsed = parseApiError(body, "Resolution failed");
+        setFieldErrors(parsed.fieldErrors);
+        throw new Error(parsed.formErrors[0] ?? parsed.message);
       }
-
       setDisputes((current) =>
         current.map((item) => (item.id === body.dispute!.id ? body.dispute! : item)),
       );
       setBanner({
         type: "success",
-        text:
-          body.verification && body.updatedTotalScore !== null
-            ? `Resolved (${body.dispute.status}). Updated score: ${body.updatedTotalScore} / ${body.dispute.attemptMaxScore}. Issued new report verification ${body.verification.code} (v${body.verification.version}); prior report versions superseded.`
-            : `Dispute resolved with outcome ${body.dispute.status}.`,
+        text: `Dispute resolved (${body.dispute.status}). Updated score: ${body.dispute.attemptTotalScore ?? 0} / ${body.dispute.attemptMaxScore}. Superseding report issued if a PDF was published.`,
       });
     } catch (error: unknown) {
       setBanner({
@@ -151,62 +143,54 @@ export function DisputeWorkbench({ initialDisputes }: { initialDisputes: Dispute
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap gap-2">
-        {statuses.map((s) => (
-          <button
-            className={
-              statusFilter === s
-                ? "btn-primary px-3 py-1.5 text-xs"
-                : "btn-secondary px-3 py-1.5 text-xs"
-            }
-            key={s}
-            onClick={() => setStatusFilter(s)}
-            type="button"
-          >
-            {s === "ALL" ? `All (${disputes.length})` : s.replaceAll("_", " ")}
-          </button>
-        ))}
+        {statuses.map((s) => {
+          const count = s === "ALL" ? disputes.length : disputes.filter((d) => d.status === s).length;
+          return (
+            <button
+              className={statusFilter === s ? "btn-primary h-9 px-3 text-xs" : "btn-secondary h-9 px-3 text-xs"}
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              type="button"
+            >
+              {s === "ALL" ? `All (${count})` : `${s.replaceAll("_", " ")} (${count})`}
+            </button>
+          );
+        })}
       </div>
 
       {banner ? (
-        <div
-          aria-live="polite"
-          className={`rounded-xl border p-3 text-sm ${
-            banner.type === "success"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-              : "border-rose-200 bg-rose-50 text-rose-800"
-          }`}
-        >
+        <AlertBanner onDismiss={() => setBanner(null)} variant={banner.type}>
           {banner.text}
-        </div>
+        </AlertBanner>
       ) : null}
 
       <div className="grid gap-5 lg:grid-cols-[340px_1fr]">
-        <section className="card divide-y divide-slate-100 overflow-hidden">
+        <section className="card divide-y divide-[var(--border-subtle)] overflow-hidden">
           {filtered.length === 0 ? (
-            <p className="p-6 text-center text-sm text-slate-500">
-              No disputes match this filter.
-            </p>
+            <EmptyState
+              description="Disputes raised by candidates for your examinations appear here."
+              icon={Scale}
+              title="No matching disputes"
+            />
           ) : (
             filtered.map((item) => (
               <button
-                className={`block w-full p-4 text-left transition hover:bg-slate-50 ${
-                  selected?.id === item.id ? "bg-indigo-50/70" : ""
+                className={`block w-full p-4 text-left transition-colors hover:bg-[var(--bg-surface-subtle)] ${
+                  selected?.id === item.id ? "bg-[var(--accent-soft)]/70" : ""
                 }`}
                 key={item.id}
                 onClick={() => selectDispute(item)}
                 type="button"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className={`status-pill ${STATUS_STYLE[item.status]}`}>
-                    {item.status.replaceAll("_", " ")}
-                  </span>
-                  <span className="text-[11px] text-slate-500">
+                  <StatusBadge status={item.status} />
+                  <span className="font-mono-tabular text-xs text-[var(--text-muted)]">
                     {new Date(item.createdAt).toLocaleDateString()}
                   </span>
                 </div>
-                <p className="mt-2 font-bold text-slate-900">{item.candidate.name}</p>
-                <p className="truncate text-xs text-slate-600">{item.examTitle}</p>
-                <p className="mt-1 text-xs font-semibold text-indigo-700">{item.category}</p>
+                <p className="mt-2 font-bold text-[var(--text-primary)]">{item.candidate.name}</p>
+                <p className="truncate text-xs text-[var(--text-secondary)]">{item.examTitle}</p>
+                <p className="mt-1 text-xs font-semibold text-[var(--accent-primary)]">{item.category}</p>
               </button>
             ))
           )}
@@ -214,88 +198,86 @@ export function DisputeWorkbench({ initialDisputes }: { initialDisputes: Dispute
 
         <section className="card p-6">
           {!selected ? (
-            <p className="p-8 text-center text-sm text-slate-500">
-              Select a dispute from the queue to inspect snapshot evidence and resolve.
-            </p>
+            <EmptyState
+              description="Select a dispute from the queue to inspect snapshot evidence and record an audited resolution."
+              icon={Scale}
+              title="No dispute selected"
+            />
           ) : (
             <div className="space-y-5">
-              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-4">
+              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border-subtle)] pb-4">
                 <div>
                   <p className="eyebrow">{selected.category}</p>
-                  <h2 className="mt-1 text-xl font-black">
+                  <h2 className="mt-1 text-xl font-bold text-[var(--text-primary)]">
                     {selected.candidate.name}{" "}
-                    <span className="text-sm font-normal text-slate-500">
+                    <span className="font-mono-tabular text-sm font-normal text-[var(--text-secondary)]">
                       ({selected.candidate.studentId ?? selected.candidate.email})
                     </span>
                   </h2>
-                  <p className="text-sm text-slate-600">
+                  <p className="text-sm text-[var(--text-secondary)]">
                     {selected.examTitle} · Current total:{" "}
-                    <strong>
+                    <strong className="font-mono-tabular text-[var(--text-primary)]">
                       {selected.attemptTotalScore ?? 0} / {selected.attemptMaxScore}
                     </strong>
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className={`status-pill ${STATUS_STYLE[selected.status]}`}>
-                    {selected.status.replaceAll("_", " ")}
-                  </span>
-                  <Link
-                    className="btn-secondary px-3 py-1.5 text-xs"
-                    href={`/examiner/exams/${selected.examId}/analytics`}
-                  >
+                  <StatusBadge status={selected.status} />
+                  <Link className="btn-secondary h-9 px-3 text-xs" href={`/examiner/exams/${selected.examId}/analytics`}>
                     Analytics <ExternalLink size={13} />
                   </Link>
                 </div>
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+              <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface-subtle)] p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)]">
                   Candidate Statement
                 </p>
-                <p className="mt-2 text-sm text-slate-900">{selected.description}</p>
+                <p className="mt-2 text-sm text-[var(--text-primary)]">{selected.description}</p>
               </div>
 
               {selected.question ? (
-                <div className="rounded-xl border border-slate-200 p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-bold uppercase tracking-wide text-indigo-700">
+                <div className="space-y-2 rounded-lg border border-[var(--border-subtle)] p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="eyebrow">
                       Snapshot Question {selected.question.displayOrder} · {selected.question.topic} ({selected.question.type})
                     </p>
-                    <span className="text-xs font-bold">
-                      Earned:{" "}
-                      {selected.question.autoScore + (selected.question.manualScore ?? 0)} /{" "}
+                    <span className="font-mono-tabular text-xs font-bold">
+                      Earned: {selected.question.autoScore + (selected.question.manualScore ?? 0)} /{" "}
                       {selected.question.maxMarks}
                     </span>
                   </div>
-                  <p className="text-sm font-semibold text-slate-900">{selected.question.prompt}</p>
+                  <p className="text-sm font-semibold text-[var(--text-primary)]">{selected.question.prompt}</p>
                   {selected.question.writtenText ? (
-                    <div className="rounded-lg bg-slate-50 p-3 text-xs whitespace-pre-wrap">
+                    <div className="whitespace-pre-wrap rounded-md bg-[var(--bg-surface-subtle)] p-3 text-xs">
                       {selected.question.writtenText}
                     </div>
                   ) : selected.question.selectedIds?.length ? (
-                    <p className="text-xs text-slate-700">
+                    <p className="text-xs text-[var(--text-secondary)]">
                       Selected options:{" "}
-                      <strong>{selected.question.selectedIds.join(", ").toUpperCase()}</strong>
+                      <strong className="font-mono-tabular">
+                        {selected.question.selectedIds.join(", ").toUpperCase()}
+                      </strong>
                     </p>
                   ) : (
-                    <p className="text-xs text-slate-500">Unanswered</p>
+                    <p className="text-xs text-[var(--text-muted)]">Unanswered</p>
                   )}
                 </div>
               ) : null}
 
-              <div className="rounded-xl border border-slate-200 p-4">
-                <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-600">
+              <div className="rounded-lg border border-[var(--border-subtle)] p-4">
+                <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)]">
                   <ShieldAlert size={14} /> Server Incident &amp; Connectivity Timeline (Review Signals)
                 </p>
                 {selected.events.length === 0 ? (
-                  <p className="mt-2 text-xs text-slate-500">
+                  <p className="mt-2 text-xs text-[var(--text-muted)]">
                     No connectivity gaps or behavioral review signals recorded during this attempt.
                   </p>
                 ) : (
-                  <ul className="mt-2 space-y-1 text-xs text-slate-700">
+                  <ul className="mt-2 space-y-1 text-xs text-[var(--text-secondary)]">
                     {selected.events.map((event) => (
                       <li key={event.id}>
-                        <span className="font-mono text-slate-500">
+                        <span className="font-mono-tabular text-[var(--text-muted)]">
                           {new Date(event.occurredAt).toLocaleTimeString()}
                         </span>{" "}
                         · <strong>{event.eventType}</strong> ({event.severity})
@@ -307,16 +289,16 @@ export function DisputeWorkbench({ initialDisputes }: { initialDisputes: Dispute
 
               {selected.status === "OPEN" || selected.status === "UNDER_REVIEW" ? (
                 <form
-                  className="space-y-4 rounded-2xl border border-indigo-200 bg-indigo-50/40 p-5"
+                  className="space-y-4 rounded-lg border border-[var(--accent-soft-border)] bg-[var(--accent-soft)]/40 p-5"
                   onSubmit={submitResolution}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="flex items-center gap-2 font-black text-slate-900">
+                    <h3 className="flex items-center gap-2 font-bold text-[var(--text-primary)]">
                       <Scale size={17} /> Audited Resolution
                     </h3>
                     {selected.status === "OPEN" ? (
                       <button
-                        className="btn-secondary px-3 py-1.5 text-xs"
+                        className="btn-secondary h-9 px-3 text-xs"
                         disabled={busy}
                         onClick={() => void markUnderReview(selected.id)}
                         type="button"
@@ -335,8 +317,10 @@ export function DisputeWorkbench({ initialDisputes }: { initialDisputes: Dispute
                       ] as const
                     ).map((opt) => (
                       <label
-                        className={`flex cursor-pointer items-center gap-2 rounded-xl border bg-white p-3 text-xs font-bold ${
-                          outcome === opt.value ? "border-indigo-500 ring-2 ring-indigo-200" : "border-slate-200"
+                        className={`flex cursor-pointer items-center gap-2 rounded-lg border p-3 text-xs font-bold ${
+                          outcome === opt.value
+                            ? "border-[var(--accent-primary)] bg-[var(--bg-surface)] text-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]"
+                            : "border-[var(--border-subtle)] bg-[var(--bg-surface)]"
                         }`}
                         key={opt.value}
                       >
@@ -352,28 +336,29 @@ export function DisputeWorkbench({ initialDisputes }: { initialDisputes: Dispute
                   </div>
 
                   {outcome === "RESOLVED_ADJUSTED" ? (
-                    <div className="grid gap-4 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-2">
+                    <div className="grid gap-4 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 md:grid-cols-2">
                       {selected.question && selected.question.type === "WRITTEN" ? (
-                        <label className="text-xs font-bold">
-                          Adjustment method
+                        <FormField label="Adjustment method">
                           <select
-                            className="field mt-1"
+                            className="field"
                             onChange={(e) => setAdjustMode(e.target.value as "manual" | "delta")}
                             value={adjustMode}
                           >
-                            <option value="manual">
-                              Set written score (0 – {selected.question.maxMarks})
-                            </option>
+                            <option value="manual">Set written score (0 – {selected.question.maxMarks})</option>
                             <option value="delta">Apply score delta (± marks)</option>
                           </select>
-                        </label>
+                        </FormField>
                       ) : null}
 
                       {adjustMode === "manual" && selected.question ? (
-                        <label className="text-xs font-bold">
-                          New written score (max {selected.question.maxMarks})
+                        <FormField
+                          error={fieldErrors.adjustedManualScore}
+                          label={`New written score (max ${selected.question.maxMarks})`}
+                          required
+                        >
                           <input
-                            className="field mt-1"
+                            aria-invalid={Boolean(fieldErrors.adjustedManualScore)}
+                            className="field font-mono-tabular"
                             max={selected.question.maxMarks}
                             min={0}
                             onChange={(e) => setAdjustedManualScore(e.target.value)}
@@ -382,52 +367,57 @@ export function DisputeWorkbench({ initialDisputes }: { initialDisputes: Dispute
                             type="number"
                             value={adjustedManualScore}
                           />
-                        </label>
+                        </FormField>
                       ) : (
-                        <label className="text-xs font-bold">
-                          Score delta (± marks)
+                        <FormField error={fieldErrors.scoreDelta} label="Score delta (± marks)" required>
                           <input
-                            className="field mt-1"
+                            aria-invalid={Boolean(fieldErrors.scoreDelta)}
+                            className="field font-mono-tabular"
                             onChange={(e) => setScoreDelta(e.target.value)}
                             required
                             step="0.5"
                             type="number"
                             value={scoreDelta}
                           />
-                        </label>
+                        </FormField>
                       )}
                     </div>
                   ) : null}
 
-                  <label className="block text-sm font-bold">
-                    Resolution note <span className="font-normal text-slate-500">(visible to candidate &amp; audit log)</span>
+                  <FormField
+                    error={fieldErrors.resolutionNote}
+                    hint="Visible to candidate and recorded permanently in the audit log."
+                    label="Resolution note"
+                    required
+                  >
                     <textarea
-                      className="field mt-1.5 min-h-20"
+                      aria-invalid={Boolean(fieldErrors.resolutionNote)}
+                      className="field min-h-20"
                       minLength={5}
                       onChange={(e) => setResolutionNote(e.target.value)}
                       placeholder="Document the evidence-based rationale for this resolution..."
                       required
                       value={resolutionNote}
                     />
-                  </label>
+                  </FormField>
 
                   <div className="flex justify-end">
                     <button className="btn-primary" disabled={busy} type="submit">
                       <CheckCircle2 size={16} />
-                      {busy ? "Recording resolution…" : "Confirm audited resolution"}
+                      <span>{busy ? "Recording resolution…" : "Confirm audited resolution"}</span>
                     </button>
                   </div>
                 </form>
               ) : (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
+                <AlertBanner variant="success">
                   <p className="font-bold">
                     Final outcome: {selected.status.replaceAll("_", " ")}
                     {selected.scoreDelta !== null
                       ? ` (${selected.scoreDelta >= 0 ? "+" : ""}${selected.scoreDelta} marks)`
                       : ""}
                   </p>
-                  <p className="mt-1">{selected.resolutionNote}</p>
-                </div>
+                  <p className="mt-1 font-normal">{selected.resolutionNote}</p>
+                </AlertBanner>
               )}
             </div>
           )}

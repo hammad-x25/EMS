@@ -7,9 +7,10 @@ import { LogOut } from "lucide-react";
 export function LogoutButton() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+
   return (
     <button
-      className="btn-secondary w-full"
+      className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm font-semibold text-slate-100 transition-colors hover:bg-slate-800"
       disabled={loading}
       onClick={async () => {
         setLoading(true);
@@ -19,7 +20,8 @@ export function LogoutButton() {
       }}
       type="button"
     >
-      <LogOut size={17} /> {loading ? "Signing out…" : "Sign out"}
+      <LogOut aria-hidden="true" size={16} />
+      <span>{loading ? "Signing out…" : "Sign out"}</span>
     </button>
   );
 }

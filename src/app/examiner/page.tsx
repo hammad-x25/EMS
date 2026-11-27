@@ -1,6 +1,7 @@
 import { ArrowRight, BookOpenCheck, ClipboardList, MessageSquareWarning, Users } from "lucide-react";
 import Link from "next/link";
 import { DisputeStatus } from "@prisma/client";
+import { StatCard } from "@/components/StatCard";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { reconcileExamStatuses } from "@/lib/exam-lifecycle";
@@ -25,55 +26,49 @@ export default async function ExaminerHomePage() {
   ]);
 
   return (
-    <div className="space-y-8">
-      <header>
-        <p className="eyebrow">Examiner workspace</p>
-        <h1 className="mt-2 text-3xl font-black">Welcome, {session?.name}</h1>
-        <p className="muted mt-2">
-          Your account is active and restricted to examiner-authorized records.
-        </p>
+    <div className="space-y-7">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="eyebrow">Examiner workspace</p>
+          <h1 className="mt-1.5 text-2xl font-extrabold tracking-tight text-[var(--text-primary)] md:text-3xl">
+            Welcome, {session?.name}
+          </h1>
+          <p className="muted mt-1 text-sm">
+            Author questions, run fairness simulations, monitor live rooms, grade written answers, and resolve disputes.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link className="btn-secondary" href="/examiner/questions">
+            <BookOpenCheck size={16} /> Question bank
+          </Link>
+          <Link className="btn-primary" href="/examiner/exams">
+            <ClipboardList size={16} /> Examinations
+          </Link>
+        </div>
       </header>
-      <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <article className="card flex flex-col justify-between p-6">
-          <div>
-            <BookOpenCheck className="text-indigo-600" />
-            <p className="mt-4 text-3xl font-black">{questions}</p>
-            <p className="muted mt-1">Reusable questions owned by you</p>
-          </div>
-          <Link className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-indigo-600" href="/examiner/questions">
-            Manage question bank <ArrowRight size={15} />
+
+      <section aria-label="Examiner workload metrics" className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="space-y-2">
+          <StatCard detail="Owned in your bank" icon={BookOpenCheck} label="Questions" value={questions} />
+          <Link className="inline-flex items-center gap-1 px-1 text-xs font-semibold text-[var(--accent-primary)] hover:underline" href="/examiner/questions">
+            Manage question bank <ArrowRight size={13} />
           </Link>
-        </article>
-        <article className="card flex flex-col justify-between p-6">
-          <div>
-            <ClipboardList className="text-indigo-600" />
-            <p className="mt-4 text-3xl font-black">{exams}</p>
-            <p className="muted mt-1">Examinations owned by you</p>
-          </div>
-          <Link className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-indigo-600" href="/examiner/exams">
-            Manage examinations <ArrowRight size={15} />
+        </div>
+        <div className="space-y-2">
+          <StatCard detail="Drafts, live & completed" icon={ClipboardList} label="Examinations" value={exams} />
+          <Link className="inline-flex items-center gap-1 px-1 text-xs font-semibold text-[var(--accent-primary)] hover:underline" href="/examiner/exams">
+            Manage examinations <ArrowRight size={13} />
           </Link>
-        </article>
-        <article className="card flex flex-col justify-between p-6">
-          <div>
-            <Users className="text-indigo-600" />
-            <p className="mt-4 text-3xl font-black">{enrollments}</p>
-            <p className="muted mt-1">Candidate enrollments across exams</p>
-          </div>
-          <Link className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-indigo-600" href="/examiner/exams">
-            Configure enrollments <ArrowRight size={15} />
+        </div>
+        <div className="space-y-2">
+          <StatCard detail="Assigned across your exams" icon={Users} label="Enrollments" value={enrollments} />
+        </div>
+        <div className="space-y-2">
+          <StatCard detail="Open or under review" icon={MessageSquareWarning} label="Active disputes" value={openDisputes} />
+          <Link className="inline-flex items-center gap-1 px-1 text-xs font-semibold text-[var(--accent-primary)] hover:underline" href="/examiner/disputes">
+            Review disputes <ArrowRight size={13} />
           </Link>
-        </article>
-        <article className="card flex flex-col justify-between p-6">
-          <div>
-            <MessageSquareWarning className="text-amber-600" />
-            <p className="mt-4 text-3xl font-black">{openDisputes}</p>
-            <p className="muted mt-1">Active result disputes awaiting review</p>
-          </div>
-          <Link className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-indigo-600" href="/examiner/disputes">
-            Review dispute queue <ArrowRight size={15} />
-          </Link>
-        </article>
+        </div>
       </section>
     </div>
   );

@@ -1,42 +1,61 @@
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, ShieldCheck } from "lucide-react";
+import { ArrowRight, CheckCircle2, Lock, ShieldCheck } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { roleHome } from "@/lib/rbac";
 
 export default async function HomePage() {
   const session = await getSession();
   const destination = session ? roleHome(session.role) : "/login";
+
   return (
-    <main className="min-h-screen px-6 py-10 md:px-12">
-      <nav className="mx-auto flex max-w-6xl items-center justify-between" aria-label="Primary navigation">
-        <div className="flex items-center gap-3 font-extrabold"><ShieldCheck className="text-indigo-600" /> AegisExam</div>
-        <Link className="btn-secondary" href={destination}>{session ? "Open workspace" : "Sign in"}</Link>
-      </nav>
-      <section className="mx-auto grid max-w-6xl items-center gap-12 py-24 lg:grid-cols-[1.1fr_0.9fr]">
-        <div>
-          <p className="eyebrow">Secure assessment operations</p>
-          <h1 className="mt-5 max-w-3xl text-5xl font-black leading-[1.05] tracking-tight text-slate-950 md:text-7xl">
-            Examinations built for trust, fairness, and continuity.
-          </h1>
-          <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
-            AegisExam gives administrators, examiners, and candidates focused workflows backed by server-enforced access control and auditable operations.
-          </p>
-          <Link className="btn-primary mt-8" href={destination}>Enter AegisExam <ArrowRight size={18} /></Link>
+    <main className="min-h-screen px-6 py-8 md:px-12">
+      <header className="mx-auto flex max-w-6xl items-center justify-between border-b border-[var(--border-subtle)] pb-5">
+        <div className="flex items-center gap-2.5 text-base font-bold text-[var(--text-primary)]">
+          <ShieldCheck aria-hidden="true" className="text-[var(--accent-primary)]" size={22} />
+          <span>AegisExam</span>
         </div>
-        <div className="card relative overflow-hidden p-8">
-          <div className="absolute -right-14 -top-14 h-44 w-44 rounded-full bg-indigo-100" />
-          <p className="eyebrow relative">Foundation controls</p>
-          <ul className="relative mt-8 space-y-5">
+        <Link className="btn-secondary" href={destination}>
+          {session ? "Open workspace" : "Sign in"}
+        </Link>
+      </header>
+
+      <section className="mx-auto grid max-w-6xl items-start gap-10 py-14 lg:grid-cols-[1.15fr_0.85fr] lg:py-20">
+        <div>
+          <p className="eyebrow">Institutional examination operations</p>
+          <h1 className="mt-3 max-w-2xl text-3xl font-extrabold tracking-tight text-[var(--text-primary)] md:text-4xl">
+            High-stakes examinations built for fairness, continuity, and auditability.
+          </h1>
+          <p className="mt-4 max-w-xl text-base leading-7 text-[var(--text-secondary)]">
+            AegisExam equips administrators, examiners, and candidates with focused, accessible workflows backed by server-enforced access control, offline answer queuing, and tamper-evident reports.
+          </p>
+          <div className="mt-7 flex flex-wrap items-center gap-3">
+            <Link className="btn-primary" href={destination}>
+              <span>{session ? "Go to workspace" : "Enter AegisExam"}</span>
+              <ArrowRight size={17} />
+            </Link>
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-muted)]">
+              <Lock aria-hidden="true" size={14} /> Session-protected institutional access
+            </span>
+          </div>
+        </div>
+
+        <aside aria-label="Platform assurance guarantees" className="card p-6">
+          <p className="eyebrow">Operational controls</p>
+          <h2 className="mt-1 text-lg font-bold text-[var(--text-primary)]">Verification &amp; integrity standards</h2>
+          <ul className="mt-5 space-y-3.5">
             {[
-              "Backend-enforced role and account status checks",
-              "Protected credentials and production-secure sessions",
-              "Immutable audit evidence for sensitive operations",
-              "Deterministic test accounts for live evaluation",
+              "Backend-enforced role authorization and active account verification",
+              "Immutable attempt snapshots, server deadlines, and monotonic sync queues",
+              "Stratified difficulty fairness blueprints with zero answer-key leakage",
+              "Audited grading, dispute resolution, and QR-verified score reports",
             ].map((item) => (
-              <li className="flex gap-3 text-slate-700" key={item}><CheckCircle2 className="shrink-0 text-emerald-600" size={21} /> {item}</li>
+              <li className="flex items-start gap-2.5 text-sm leading-6 text-[var(--text-secondary)]" key={item}>
+                <CheckCircle2 aria-hidden="true" className="mt-0.5 shrink-0 text-[var(--status-success-text)]" size={18} />
+                <span>{item}</span>
+              </li>
             ))}
           </ul>
-        </div>
+        </aside>
       </section>
     </main>
   );

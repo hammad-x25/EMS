@@ -253,3 +253,18 @@ git push origin main --tags
 2. **At the end of each plan, or before handing off unfinished work**, update `docs/WORK_DONE.md` with the plan number, status (`in progress`, `blocked`, or `complete`), delivered requirements, and a link to the detailed handoff. Create or update the handoff in `docs/handoffs/` using the same filename as the plan, for example `docs/handoffs/01-foundation-auth-rbac.md`.
 3. **Each handoff must include** the plan branch and relevant implementation commit IDs, what was completed, key files and interface or schema changes, approved decisions and open questions, exact verification commands and their outcomes, and the next agent's first actionable step. Record checks that failed or were skipped and explain why. For unfinished work, state what remains and where to resume.
 4. **Commit the work log and handoff on the plan branch** before merging or transferring the work. Mark a plan complete once its verification passes and its documentation is committed. Keep the handoff current if later fixes change what was verified or what the next agent needs to do.
+## Mandatory UI/UX Engineering Standards
+
+Before performing any frontend development, UI redesign, component implementation, styling, accessibility improvement, or user workflow modification, the agent MUST read and follow:
+
+.agents/skills/examination-ui-ux/SKILL.md
+
+The agent must also review all relevant reference files associated with this skill.
+
+All implementations must comply with the project's approved business requirements, examination policies, accessibility standards, design system, and role-based interaction patterns.
+
+The agent must prioritize functional correctness, usability, examination reliability, accessibility, and consistency over decorative styling.
+
+Before declaring any UI/UX task complete, the agent must perform the applicable quality checks, test critical user workflows, document design decisions, report unresolved issues, and provide implementation handoff documentation in the docs/ directory.
+
+Existing project specifications, Git branching policies, security requirements, and business rules must remain intact. Any conflicting requirements must be reported before implementing the affected functionality.
