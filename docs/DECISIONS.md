@@ -22,3 +22,8 @@ This log records decisions approved by the team when the competition brief, mast
 13. **Session revocation and cookie policy:** Superseding Decision 5's `sameSite=lax`, session cookies use `httpOnly`, `sameSite=strict`, and `secure=true` in production. `User.tokenVersion` provides server-side JWT revocation on logout, password reset, role change, and account deactivation.
 14. **Password policy:** Newly created, imported, or reset user passwords require at least 12 characters with mixed case, digit, and symbol, hashed with `bcryptjs` cost 12 (existing cost-10 seed hashes remain verifiable via `bcryptjs.compare`).
 
+## 2026-11-27 — Post-implementation QA resolutions
+
+15. **Authoritative answer cutoff:** The five-second in-flight grace in `AGENTS.md` Section 2.2.3 and the master specification is authoritative. An attempt remains `IN_PROGRESS` for answer synchronization through `effectiveDeadlineAt + 5000ms`, inclusive. Answer sync, heartbeat/get-attempt expiry, and submission must use this same cutoff; after it, the attempt is expired and no mutation is accepted.
+16. **Race-safe final submission:** Final submission may carry the candidate's pending monotonic answer mutations. The server applies those mutations and conditionally finalizes the attempt in one serializable transaction. Serialization failures are retried up to three times and then returned as an explicit retryable conflict rather than silently finalizing without the answer.
+
