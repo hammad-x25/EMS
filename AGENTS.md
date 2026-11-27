@@ -8,7 +8,7 @@ Every AI agent and human contributor **MUST** follow the specifications in `docs
 
 ## 1. Spec-Driven Development Mandate
 
-1. **Source of Truth**: Always read [docs/00-master-specification.md](./docs/00-master-specification.md) and the active phase plan before writing or modifying code:
+1. **Review order.** Read `Web-e-Thon Problem Statement.pdf` in the repository root first. Then read [docs/00-master-specification.md](./docs/00-master-specification.md), the active plan, and any relevant work logs and handoffs before editing:
    - **Plan 1**: [docs/01-foundation-auth-rbac.md](./docs/01-foundation-auth-rbac.md)
    - **Plan 2**: [docs/02-question-bank-exams-fairness.md](./docs/02-question-bank-exams-fairness.md)
    - **Plan 3**: [docs/03-exam-delivery-resilience-workspace.md](./docs/03-exam-delivery-resilience-workspace.md)
@@ -17,6 +17,7 @@ Every AI agent and human contributor **MUST** follow the specifications in `docs
 2. **Strict Plan Adherence**:
    - Execute plans **in order (Plan 1 → Plan 5)**. Do not start a later plan until all automated tests and verification steps of the current plan pass.
    - Do not invent unrequested features or alter the Prisma schema, RBAC model, or API contracts without first updating the corresponding specification in `docs/`.
+   - If the competition brief, master specification, or phase plans conflict, show the project owners the conflicting sections, explain the impact, and propose a resolution. Wait for their decision before implementing the affected work. Record the approved decision in the relevant plan and handoff.
 3. **Zero Placeholders**: Never leave stubbed buttons, mocked endpoints, or `TODO` placeholders in completed plan milestones. Every visible UI control must connect to real validated backend logic and PostgreSQL persistence.
 
 ---
@@ -105,13 +106,15 @@ git commit -m "docs: add problem statement, master spec, phased plans, and AGENT
 ```
 
 ### 4.2 Starting a Plan Branch
-Create a dedicated branch per plan so each milestone is isolated and cleanly reviewable:
+Each plan **MUST** use its own dedicated branch for implementation, verification fixes, and plan documentation. Keep `main` for integration. Check the working tree and preserve existing changes before switching branches. Resume the existing plan branch when continuing unfinished work. For a new plan, branch from the current `main` after the previous plan and its handoff have been merged.
+
+Example for a new Plan 1 branch:
 ```bash
 git checkout main
 git pull --ff-only origin main   # if remote exists
 git checkout -b feat/plan-01-foundation
 ```
-Recommended branch names:
+Use the following branch names:
 - `feat/plan-01-foundation`
 - `feat/plan-02-question-bank-fairness`
 - `feat/plan-03-exam-delivery-resilience`
@@ -154,7 +157,8 @@ git rebase origin/main
 ```
 
 ### 4.5 Completing & Merging a Plan into `main`
-Only merge after **all verification gates** in Section 3 pass:
+Merge only after all verification gates in Section 3 pass and the work log and handoff required by Section 5 are committed on the plan branch.
+Run the following checks on the plan branch and confirm it has a clean working tree before switching to `main`.
 ```bash
 # Verify clean working tree & passing checks
 npx prisma generate && npm run typecheck && npm run lint && npx vitest run && npm run build
@@ -207,3 +211,12 @@ npm ci && npx prisma generate && npm run typecheck && npm run lint && npx vitest
 git tag -a v1.0-submission -m "Final Web-e-Thon submission"
 git push origin main --tags
 ```
+
+---
+
+## 5. Plan Documentation & Handoff
+
+1. **Before starting a plan**, read `docs/WORK_DONE.md` and the preceding plan's handoff, when they exist. Confirm the branch, current status, and dependencies against the repository.
+2. **At the end of each plan, or before handing off unfinished work**, update `docs/WORK_DONE.md` with the plan number, status (`in progress`, `blocked`, or `complete`), delivered requirements, and a link to the detailed handoff. Create or update the handoff in `docs/handoffs/` using the same filename as the plan, for example `docs/handoffs/01-foundation-auth-rbac.md`.
+3. **Each handoff must include** the plan branch and relevant implementation commit IDs, what was completed, key files and interface or schema changes, approved decisions and open questions, exact verification commands and their outcomes, and the next agent's first actionable step. Record checks that failed or were skipped and explain why. For unfinished work, state what remains and where to resume.
+4. **Commit the work log and handoff on the plan branch** before merging or transferring the work. Mark a plan complete once its verification passes and its documentation is committed. Keep the handoff current if later fixes change what was verified or what the next agent needs to do.
