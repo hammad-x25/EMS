@@ -41,7 +41,8 @@ Every AI agent and human contributor **MUST** follow the specifications in `docs
    - Never serialize `Question.correctIdsJson`, `AttemptQuestionSnapshot.correctIdsSnap`, or `explanation` to Candidate endpoints while an exam is unsubmitted or unpublished (`attempt.status !== 'PUBLISHED' || exam.resultsPublishedAt === null`).
 3. **Server-Authoritative Timing**:
    - Compute `hardDeadlineAt = min(startedAt + durationMinutes, scheduledEnd)` strictly on the server.
-   - Reject answer sync mutations arriving past `hardDeadlineAt + 5000ms` (grace buffer for in-flight requests) and finalize expired attempts atomically.
+   - Preserve `hardDeadlineAt` as the original deadline and calculate `effectiveDeadlineAt = hardDeadlineAt + timeExtensionMinutes` for audited accommodations.
+   - Reject answer sync mutations arriving past `effectiveDeadlineAt + 5000ms` (grace buffer for in-flight requests) and finalize expired attempts atomically.
 4. **Idempotency & Concurrency Safety**:
    - Finalize attempts with an atomic conditional update (`WHERE id = ... AND status = 'IN_PROGRESS'`) so duplicate `/submit` requests never corrupt scores or create duplicate records.
    - Use monotonic `clientSeq` comparison on `/api/attempts/[id]/sync` so reconnected offline queues never overwrite newer answers.
