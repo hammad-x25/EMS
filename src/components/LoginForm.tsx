@@ -7,15 +7,9 @@ import { AlertBanner } from "@/components/ui/AlertBanner";
 import { FormField } from "@/components/ui/FormField";
 import { parseApiError, readApiJson } from "@/lib/form-errors";
 
-const demos = [
-  { label: "Administrator", email: "admin@aegisexam.local", password: "Admin@123!" },
-  { label: "Examiner", email: "examiner1@aegisexam.local", password: "Examiner@123!" },
-  { label: "Candidate", email: "candidate1@aegisexam.local", password: "Candidate@123!" },
-];
-
 type LoginResponse = { user?: { role: "ADMIN" | "EXAMINER" | "CANDIDATE" }; error?: { message?: string; details?: unknown } };
 
-export function LoginForm({ demoMode }: { demoMode: boolean }) {
+export function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -54,31 +48,6 @@ export function LoginForm({ demoMode }: { demoMode: boolean }) {
 
   return (
     <form className="space-y-4" onSubmit={submit}>
-      {demoMode ? (
-        <fieldset className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface-subtle)] p-3">
-          <legend className="px-1 text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
-            Evaluation quick fill
-          </legend>
-          <div className="mt-1.5 grid grid-cols-3 gap-2">
-            {demos.map((demo) => (
-              <button
-                className="btn-secondary h-9 px-2 text-xs"
-                key={demo.label}
-                onClick={() => {
-                  setEmail(demo.email);
-                  setPassword(demo.password);
-                  setError("");
-                  setFieldErrors({});
-                }}
-                type="button"
-              >
-                {demo.label}
-              </button>
-            ))}
-          </div>
-        </fieldset>
-      ) : null}
-
       <FormField error={fieldErrors.email} label="Email address" required>
         <input
           aria-invalid={Boolean(fieldErrors.email)}

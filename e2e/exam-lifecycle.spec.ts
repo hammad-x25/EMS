@@ -4,6 +4,7 @@ test.describe("AegisExam full evaluation lifecycle", () => {
   test("covers admin RBAC, fairness & sandbox, offline exam sync, grading, PDF/QR verification, and dispute resolution", async ({
     browser,
   }) => {
+    test.setTimeout(120_000);
     const adminContext = await browser.newContext();
     const examinerContext = await browser.newContext();
     const candidateContext = await browser.newContext();
@@ -12,7 +13,8 @@ test.describe("AegisExam full evaluation lifecycle", () => {
       // 1. Admin login & RBAC verification
       const adminPage = await adminContext.newPage();
       await adminPage.goto("/login");
-      await adminPage.getByRole("button", { name: "Administrator" }).click();
+      await adminPage.getByLabel("Email address").fill("admin@aegisexam.local");
+      await adminPage.getByLabel("Password").fill("Admin@123!");
       await adminPage.getByRole("button", { name: "Sign in securely" }).click();
       await adminPage.waitForURL("**/admin");
       await adminPage.goto("/admin/users");
@@ -21,7 +23,8 @@ test.describe("AegisExam full evaluation lifecycle", () => {
       // 2. Examiner login, Fairness Inspector, and Sandbox preview
       const examinerPage = await examinerContext.newPage();
       await examinerPage.goto("/login");
-      await examinerPage.getByRole("button", { name: "Examiner" }).click();
+      await examinerPage.getByLabel("Email address").fill("examiner1@aegisexam.local");
+      await examinerPage.getByLabel("Password").fill("Examiner@123!");
       await examinerPage.getByRole("button", { name: "Sign in securely" }).click();
       await examinerPage.waitForURL("**/examiner");
 

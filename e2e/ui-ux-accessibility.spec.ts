@@ -10,7 +10,8 @@ test.describe("UI/UX accessibility, responsive layout, and high-stakes safeguard
 
     try {
       await mobilePage.goto("/login");
-      await mobilePage.getByRole("button", { name: "Administrator" }).click();
+      await mobilePage.getByLabel("Email address").fill("admin@aegisexam.local");
+      await mobilePage.getByLabel("Password").fill("Admin@123!");
       await mobilePage.getByRole("button", { name: "Sign in securely" }).click();
       await mobilePage.waitForURL("**/admin");
 
@@ -48,7 +49,8 @@ test.describe("UI/UX accessibility, responsive layout, and high-stakes safeguard
     const examinerPage = await examinerContext.newPage();
     try {
       await examinerPage.goto("/login");
-      await examinerPage.getByRole("button", { name: "Examiner" }).click();
+      await examinerPage.getByLabel("Email address").fill("examiner1@aegisexam.local");
+      await examinerPage.getByLabel("Password").fill("Examiner@123!");
       await examinerPage.getByRole("button", { name: "Sign in securely" }).click();
       await examinerPage.waitForURL("**/examiner");
 

@@ -23,7 +23,7 @@ export default async function LoginPage() {
             One secure entrance. Three role-isolated workspaces.
           </h1>
           <p className="mt-4 text-sm leading-6 text-slate-300">
-            Authentication tokens are httpOnly, strict same-site, versioned for immediate revocation, and verified against account status on every request.
+            Sign in with your assigned institutional account to manage assessments, author examinations, or complete scheduled papers with confidence.
           </p>
         </div>
         <p className="text-xs text-slate-400">Protected institutional examination delivery system</p>
@@ -35,7 +35,7 @@ export default async function LoginPage() {
           <h2 className="mt-1.5 text-2xl font-bold tracking-tight text-[var(--text-primary)]">Sign in to your workspace</h2>
           <p className="mt-1 text-sm text-[var(--text-secondary)]">Use your assigned institutional credentials.</p>
           <div className="mt-6">
-            <LoginForm demoMode={process.env.NEXT_PUBLIC_DEMO_MODE === "true"} />
+            <LoginForm />
           </div>
         </div>
       </section>

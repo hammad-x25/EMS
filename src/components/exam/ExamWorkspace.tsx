@@ -116,52 +116,54 @@ export function ExamWorkspace({ examId, mode }: { examId: string; mode: "candida
 
   async function flushQueue(attemptId = attemptRef.current?.id): Promise<boolean> {
     if (!attemptId || flushInFlightRef.current) return false;
-    if (!navigator.onLine) {
+    flushInFlightRef.current = true;
+    try {
+      if (!navigator.onLine) {
+        const queued = await getQueuedMutations(attemptId);
+        setQueuedCount(queued.length);
+        setSyncState(resolveOfflineSyncState(queued.length));
+        return false;
+      }
       const queued = await getQueuedMutations(attemptId);
       setQueuedCount(queued.length);
-      setSyncState(resolveOfflineSyncState(queued.length));
-      return false;
-    }
-    const queued = await getQueuedMutations(attemptId);
-    setQueuedCount(queued.length);
-    if (queued.length === 0) {
-      setSyncState("SYNCED");
-      return true;
-    }
-    flushInFlightRef.current = true;
-    setSyncState("SAVING");
-    try {
-      const response = await fetch(`/api/attempts/${attemptId}/sync`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mutations: queued }),
-      });
-      const body = (await response.json().catch(() => null)) as { attempt?: AttemptDto } | null;
-      if (!response.ok || !body?.attempt) throw new Error(errorMessage(body, "Unable to synchronize answers"));
-      await removeAcknowledgedMutations(attemptId, queued);
-      const remaining = await getQueuedMutations(attemptId);
-      setQueuedCount(remaining.length);
-      setAttempt(mergeQueued(body.attempt, remaining));
-      setServerOffsetMs(new Date(body.attempt.serverNow).getTime() - Date.now());
-      retryDelayRef.current = 1000;
-      setSyncState(remaining.length === 0 ? "SYNCED" : "SAVING");
-      return remaining.length === 0;
-    } catch (syncError: unknown) {
-      const pending = await getQueuedMutations(attemptId);
-      setQueuedCount(pending.length);
-      if (!navigator.onLine) {
-        setSyncState(resolveOfflineSyncState(pending.length));
-      } else {
-        setSyncState("SYNC_ERROR");
-        if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
-        retryTimerRef.current = setTimeout(() => {
-          retryTimerRef.current = null;
-          void flushQueue(attemptId);
-        }, retryDelayRef.current);
-        retryDelayRef.current = Math.min(retryDelayRef.current * 2, 30_000);
+      if (queued.length === 0) {
+        setSyncState("SYNCED");
+        return true;
       }
-      console.warn(syncError);
-      return false;
+      setSyncState("SAVING");
+      try {
+        const response = await fetch(`/api/attempts/${attemptId}/sync`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mutations: queued }),
+        });
+        const body = (await response.json().catch(() => null)) as { attempt?: AttemptDto } | null;
+        if (!response.ok || !body?.attempt) throw new Error(errorMessage(body, "Unable to synchronize answers"));
+        await removeAcknowledgedMutations(attemptId, queued);
+        const remaining = await getQueuedMutations(attemptId);
+        setQueuedCount(remaining.length);
+        setAttempt(mergeQueued(body.attempt, remaining));
+        setServerOffsetMs(new Date(body.attempt.serverNow).getTime() - Date.now());
+        retryDelayRef.current = 1000;
+        setSyncState(remaining.length === 0 ? "SYNCED" : "SAVING");
+        return remaining.length === 0;
+      } catch (syncError: unknown) {
+        const pending = await getQueuedMutations(attemptId);
+        setQueuedCount(pending.length);
+        if (!navigator.onLine) {
+          setSyncState(resolveOfflineSyncState(pending.length));
+        } else {
+          setSyncState("SYNC_ERROR");
+          if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+          retryTimerRef.current = setTimeout(() => {
+            retryTimerRef.current = null;
+            void flushQueue(attemptId);
+          }, retryDelayRef.current);
+          retryDelayRef.current = Math.min(retryDelayRef.current * 2, 30_000);
+        }
+        console.warn(syncError);
+        return false;
+      }
     } finally {
       flushInFlightRef.current = false;
       const remaining = await getQueuedMutations(attemptId);
@@ -277,6 +279,7 @@ export function ExamWorkspace({ examId, mode }: { examId: string; mode: "candida
     if (!attemptId || attempt.status !== "IN_PROGRESS") return;
 
     const heartbeat = async () => {
+      if (!navigator.onLine || flushInFlightRef.current) return;
       try {
         const response = await fetch(`/api/attempts/${attemptId}/heartbeat`, { method: "POST" });
         const body = (await response.json().catch(() => null)) as { attempt?: AttemptDto } | null;
