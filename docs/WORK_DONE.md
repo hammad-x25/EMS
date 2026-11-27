@@ -1,5 +1,33 @@
 # Work Done
 
+## Post-implementation QA regression blockers
+
+**Status:** Complete and verified on `fix/qa-regression-blockers`
+**Date:** 2026-11-27
+
+### Implementation commits
+
+- `0cb2272` — atomically seal pending answer mutations during final submission, retry serializable conflicts, and apply one five-second answer cutoff across sync/heartbeat/expiry.
+- `8653e7b` — upgrade Vitest and enforce patched PostCSS throughout the dependency tree.
+
+### Completed fixes
+
+- **DEF-001:** `/api/attempts/[id]/submit` now accepts an optional validated `mutations` array. The server applies pending monotonic edits and conditionally changes `IN_PROGRESS` status in the same serializable transaction. The Candidate Workspace retains its local queue on failure and displays a retry/offline state instead of treating a failed save as finalized.
+- **DEF-002:** `effectiveDeadlineAt + 5000ms` is the single inclusive answer cutoff used by answer sync, heartbeat/get-attempt expiry, and finalization checks. The approved policy is recorded in `docs/DECISIONS.md`.
+- **Dependency advisories:** Vitest `3.2.7` was upgraded to `4.1.12`; PostCSS `8.5.34` is pinned and overridden across direct and nested installs. Both full and production-only npm audits report zero vulnerabilities.
+
+### Verification summary
+
+- Prisma Client generation, TypeScript, ESLint, Vitest, and the production Next.js build passed.
+- Vitest: 12 files, 42/42 tests passed.
+- Focused PostgreSQL regression: heartbeat plus in-grace sync passed; 20/20 simultaneous save/submit trials retained `selectedIds=["b"]` and score `2`.
+- `npm audit` and `npm audit --omit=dev`: zero advisories.
+- The normal development-server Playwright run hit its existing 60-second harness timeout. A production-server rerun was started after a clean seed but interrupted before the runner printed a final result, so no new E2E pass is claimed here. The pre-fix QA baseline and prior Plan 5 handoff retain their independently completed browser pass.
+
+See [handoffs/qa-regression-blockers.md](./handoffs/qa-regression-blockers.md) for contracts, exact commands, outcomes, and continuation instructions.
+
+---
+
 ## Plan 5 — Trust & Dispute Resolution, Polish, Verification & Deployment
 
 **Status:** Complete and verified on `feat/plan-05-disputes-polish-deploy`  

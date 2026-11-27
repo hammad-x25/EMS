@@ -191,7 +191,7 @@ export function ExamWorkspace({ examId, mode }: { examId: string; mode: "candida
       const serverNow = Date.now() + serverOffsetMs;
       const seconds = Math.max(0, Math.ceil((new Date(attempt.effectiveDeadlineAt).getTime() - serverNow) / 1000));
       setRemainingSeconds(seconds);
-      if (seconds === 0 && attemptRef.current?.status === "IN_PROGRESS") void finalizeAttempt(true);
+      if (seconds === 0 && attemptRef.current?.status === "IN_PROGRESS") void finalizeAttempt();
     };
     update();
     const timer = window.setInterval(update, 1000);
@@ -341,26 +341,35 @@ export function ExamWorkspace({ examId, mode }: { examId: string; mode: "candida
     else void flushQueue(currentAttempt.id);
   }
 
-  async function finalizeAttempt(automatic = false) {
+  async function finalizeAttempt() {
     const current = attemptRef.current;
     if (!current || submitInFlightRef.current || current.status !== "IN_PROGRESS") return;
     submitInFlightRef.current = true;
     setSubmitting(true);
     setError(null);
     try {
-      let pending = await getQueuedMutations(current.id);
-      for (let attemptNumber = 0; attemptNumber < 3 && pending.length > 0 && navigator.onLine; attemptNumber += 1) {
-        await flushQueue(current.id);
-        await new Promise((resolve) => window.setTimeout(resolve, 100));
-        pending = await getQueuedMutations(current.id);
+      const pending = await getQueuedMutations(current.id);
+      if (pending.length > 0 && !navigator.onLine) {
+        setSyncState("OFFLINE_QUEUED");
+        throw new Error("Reconnect before submitting so your pending answers can be sealed safely.");
       }
-      if (pending.length > 0 && !automatic) throw new Error("Reconnect and synchronize queued answers before final submission.");
-      const response = await fetch(`/api/attempts/${current.id}/submit`, { method: "POST" });
+      if (pending.length > 0) setSyncState("SAVING");
+      const response = await fetch(`/api/attempts/${current.id}/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mutations: pending }),
+      });
       const body = (await response.json().catch(() => null)) as { attempt?: AttemptDto } | null;
       if (!response.ok || !body?.attempt) throw new Error(errorMessage(body, "Unable to submit this attempt"));
+      await removeAcknowledgedMutations(current.id, pending);
+      setQueuedCount(0);
+      setSyncState("SYNCED");
       setAttempt(body.attempt);
       setReviewOpen(false);
     } catch (submitError: unknown) {
+      const pending = await getQueuedMutations(current.id);
+      setQueuedCount(pending.length);
+      if (pending.length > 0) setSyncState(navigator.onLine ? "SYNC_ERROR" : "OFFLINE_QUEUED");
       setError(submitError instanceof Error ? submitError.message : "Unable to submit this attempt");
     } finally {
       submitInFlightRef.current = false;
@@ -450,7 +459,7 @@ export function ExamWorkspace({ examId, mode }: { examId: string; mode: "candida
       </main>
       <WorkspacePreferencesDrawer onChange={changePreferences} onClose={() => setSettingsOpen(false)} open={settingsOpen} preferences={preferences} />
       <ScratchpadDrawer attemptId={attempt.id} onClose={() => setScratchpadOpen(false)} open={scratchpadOpen} />
-      <ReviewSubmitModal busy={submitting} onClose={() => setReviewOpen(false)} onSubmit={() => void finalizeAttempt(false)} open={reviewOpen} questions={attempt.questions} />
+      <ReviewSubmitModal busy={submitting} onClose={() => setReviewOpen(false)} onSubmit={() => void finalizeAttempt()} open={reviewOpen} questions={attempt.questions} />
     </div>
   );
 }

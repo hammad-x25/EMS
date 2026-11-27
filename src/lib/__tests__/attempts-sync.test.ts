@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   AnswerMutationSchema,
+  ANSWER_SYNC_GRACE_MS,
+  calculateAnswerCutoff,
   calculateEffectiveDeadline,
   isRealAttempt,
   shouldApplyMutation,
+  SubmitAttemptSchema,
 } from "@/lib/attempts";
 
 describe("attempt synchronization and delivery rules", () => {
@@ -15,6 +18,10 @@ describe("attempt synchronization and delivery rules", () => {
     );
     expect(calculateEffectiveDeadline(hardDeadline, -10).toISOString()).toBe(
       hardDeadline.toISOString(),
+    );
+    expect(ANSWER_SYNC_GRACE_MS).toBe(5_000);
+    expect(calculateAnswerCutoff(hardDeadline, 15).toISOString()).toBe(
+      "2026-11-27T12:15:05.000Z",
     );
   });
 
@@ -48,5 +55,18 @@ describe("attempt synchronization and delivery rules", () => {
         capturedAt: "not-a-date",
       }),
     ).toThrow();
+
+    expect(
+      SubmitAttemptSchema.parse({
+        mutations: [{
+          snapshotId: "snapshot-1",
+          selectedIds: ["a"],
+          markedForReview: false,
+          clientSeq: 4,
+          capturedAt: "2026-11-27T12:00:00.000Z",
+        }],
+      }).mutations,
+    ).toHaveLength(1);
+    expect(SubmitAttemptSchema.parse({}).mutations).toEqual([]);
   });
 });
