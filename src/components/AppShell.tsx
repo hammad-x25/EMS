@@ -1,5 +1,5 @@
 import { Role } from "@prisma/client";
-import { Activity, BookOpenCheck, ClipboardList, LayoutDashboard, ScrollText, ShieldCheck, Users } from "lucide-react";
+import { Activity, BookOpenCheck, ClipboardList, LayoutDashboard, MessageSquareWarning, ScrollText, ShieldCheck, Users } from "lucide-react";
 import Link from "next/link";
 import { LogoutButton } from "@/components/LogoutButton";
 import type { SessionUser } from "@/lib/auth";
@@ -15,6 +15,7 @@ const navigation = {
     { href: "/examiner", label: "Examiner home", icon: LayoutDashboard },
     { href: "/examiner/questions", label: "Question bank", icon: BookOpenCheck },
     { href: "/examiner/exams", label: "Examinations", icon: ClipboardList },
+    { href: "/examiner/disputes", label: "Disputes", icon: MessageSquareWarning },
   ],
   CANDIDATE: [
     { href: "/candidate", label: "Candidate home", icon: LayoutDashboard },
