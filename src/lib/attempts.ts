@@ -29,6 +29,10 @@ export const SyncAnswersSchema = z.object({
   mutations: z.array(AnswerMutationSchema).min(1).max(100),
 });
 
+export const SubmitAttemptSchema = z.object({
+  mutations: z.array(AnswerMutationSchema).max(100).default([]),
+});
+
 export const AttemptEventSchema = z.object({
   eventType: z.enum(["TAB_BLUR", "FULLSCREEN_EXIT", "PASTE_ATTEMPT"]),
   metadata: z
@@ -89,11 +93,24 @@ const attemptInclude = Prisma.validator<Prisma.AttemptInclude>()({
 
 type AttemptWithWorkspace = Prisma.AttemptGetPayload<{ include: typeof attemptInclude }>;
 
+export const ANSWER_SYNC_GRACE_MS = 5_000;
+const SERIALIZABLE_RETRY_LIMIT = 3;
+
 export function calculateEffectiveDeadline(
   hardDeadlineAt: Date,
   timeExtensionMinutes: number,
 ): Date {
   return new Date(hardDeadlineAt.getTime() + Math.max(0, timeExtensionMinutes) * 60_000);
+}
+
+export function calculateAnswerCutoff(
+  hardDeadlineAt: Date,
+  timeExtensionMinutes: number,
+): Date {
+  return new Date(
+    calculateEffectiveDeadline(hardDeadlineAt, timeExtensionMinutes).getTime() +
+      ANSWER_SYNC_GRACE_MS,
+  );
 }
 
 export function shouldApplyMutation(existingClientSeq: number | null, incomingClientSeq: number): boolean {
@@ -185,11 +202,11 @@ async function loadWorkspaceAttempt(id: string): Promise<AttemptWithWorkspace> {
 }
 
 async function expireIfDue(attempt: AttemptWithWorkspace, now: Date): Promise<AttemptWithWorkspace> {
-  const effectiveDeadline = calculateEffectiveDeadline(
+  const answerCutoff = calculateAnswerCutoff(
     attempt.hardDeadlineAt,
     attempt.timeExtensionMinutes,
   );
-  if (attempt.status !== AttemptStatus.IN_PROGRESS || now <= effectiveDeadline) return attempt;
+  if (attempt.status !== AttemptStatus.IN_PROGRESS || now <= answerCutoff) return attempt;
 
   await db.attempt.updateMany({
     where: { id: attempt.id, status: AttemptStatus.IN_PROGRESS },
@@ -422,85 +439,129 @@ function validateMutation(snapshot: AttemptWithWorkspace["snapshots"][number], m
   }
 }
 
+function isSerializationFailure(error: unknown): error is Prisma.PrismaClientKnownRequestError {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034";
+}
+
+async function runSerializableWithRetry<T>(
+  operation: (tx: Prisma.TransactionClient) => Promise<T>,
+): Promise<T> {
+  let lastError: unknown;
+  for (let attemptNumber = 1; attemptNumber <= SERIALIZABLE_RETRY_LIMIT; attemptNumber += 1) {
+    try {
+      return await db.$transaction(operation, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      });
+    } catch (error: unknown) {
+      lastError = error;
+      if (!isSerializationFailure(error) || attemptNumber === SERIALIZABLE_RETRY_LIMIT) throw error;
+    }
+  }
+  throw lastError;
+}
+
+async function loadWorkspaceAttemptInTransaction(
+  tx: Prisma.TransactionClient,
+  attemptId: string,
+): Promise<AttemptWithWorkspace> {
+  const attempt = await tx.attempt.findUnique({ where: { id: attemptId }, include: attemptInclude });
+  if (!attempt) throw new NotFoundError("Attempt not found");
+  return attempt;
+}
+
+async function applyMutationsInTransaction(
+  tx: Prisma.TransactionClient,
+  attempt: AttemptWithWorkspace,
+  mutations: AnswerMutation[],
+  now: Date,
+): Promise<{ accepted: number; ignored: number; highestClientSeq: number }> {
+  const snapshots = new Map(attempt.snapshots.map((snapshot) => [snapshot.id, snapshot]));
+  let accepted = 0;
+  let ignored = 0;
+  let highestClientSeq = attempt.lastClientSeq;
+
+  for (const mutation of [...mutations].sort((a, b) => a.clientSeq - b.clientSeq)) {
+    const snapshot = snapshots.get(mutation.snapshotId);
+    if (!snapshot) {
+      throw new BadRequestError(
+        "Question snapshot does not belong to this attempt",
+        "INVALID_SNAPSHOT",
+      );
+    }
+    validateMutation(snapshot, mutation);
+    const existing = await tx.attemptAnswer.findUnique({
+      where: { snapshotId: mutation.snapshotId },
+    });
+    if (!shouldApplyMutation(existing?.clientSeq ?? null, mutation.clientSeq)) {
+      ignored += 1;
+      continue;
+    }
+    const selectedIds = mutation.selectedIds ?? [];
+    await tx.attemptAnswer.upsert({
+      where: { snapshotId: mutation.snapshotId },
+      update: {
+        selectedIdsJson: snapshot.type === QuestionType.WRITTEN
+          ? Prisma.JsonNull
+          : (selectedIds as Prisma.InputJsonValue),
+        writtenText: snapshot.type === QuestionType.WRITTEN
+          ? mutation.writtenText ?? ""
+          : null,
+        markedForReview: mutation.markedForReview,
+        clientSeq: mutation.clientSeq,
+        savedAt: now,
+      },
+      create: {
+        attemptId: attempt.id,
+        snapshotId: mutation.snapshotId,
+        selectedIdsJson: snapshot.type === QuestionType.WRITTEN
+          ? Prisma.JsonNull
+          : (selectedIds as Prisma.InputJsonValue),
+        writtenText: snapshot.type === QuestionType.WRITTEN
+          ? mutation.writtenText ?? ""
+          : null,
+        markedForReview: mutation.markedForReview,
+        clientSeq: mutation.clientSeq,
+        savedAt: now,
+      },
+    });
+    accepted += 1;
+    highestClientSeq = Math.max(highestClientSeq, mutation.clientSeq);
+  }
+
+  return { accepted, ignored, highestClientSeq };
+}
+
 export async function syncAnswers(
   actor: SessionUser,
   attemptId: string,
   mutations: AnswerMutation[],
   now = new Date(),
 ): Promise<{ accepted: number; ignored: number; attempt: AttemptDto }> {
-  const attempt = await loadWorkspaceAttempt(attemptId);
-  assertAttemptAccess(actor, attempt);
-  const effectiveDeadline = calculateEffectiveDeadline(attempt.hardDeadlineAt, attempt.timeExtensionMinutes);
-  if (attempt.status !== AttemptStatus.IN_PROGRESS) {
-    throw new ConflictError("This attempt no longer accepts answers", "ATTEMPT_FINALIZED");
-  }
-  if (now.getTime() > effectiveDeadline.getTime() + 5_000) {
-    await db.attempt.updateMany({
-      where: { id: attempt.id, status: AttemptStatus.IN_PROGRESS },
-      data: { status: AttemptStatus.EXPIRED, submittedAt: now },
-    });
-    throw new ConflictError("The examination time limit has expired", "ATTEMPT_EXPIRED");
-  }
-
-  const snapshots = new Map(attempt.snapshots.map((snapshot) => [snapshot.id, snapshot]));
-  let accepted = 0;
-  let ignored = 0;
-  let highestClientSeq = attempt.lastClientSeq;
-  const connectionGapMs = now.getTime() - attempt.lastHeartbeatAt.getTime();
-
-  await db.$transaction(
-    async (tx) => {
-      for (const mutation of [...mutations].sort((a, b) => a.clientSeq - b.clientSeq)) {
-        const snapshot = snapshots.get(mutation.snapshotId);
-        if (!snapshot) {
-          throw new BadRequestError(
-            "Question snapshot does not belong to this attempt",
-            "INVALID_SNAPSHOT",
-          );
-        }
-        validateMutation(snapshot, mutation);
-        const existing = await tx.attemptAnswer.findUnique({
-          where: { snapshotId: mutation.snapshotId },
-        });
-        if (!shouldApplyMutation(existing?.clientSeq ?? null, mutation.clientSeq)) {
-          ignored += 1;
-          continue;
-        }
-        const selectedIds = mutation.selectedIds ?? [];
-        await tx.attemptAnswer.upsert({
-          where: { snapshotId: mutation.snapshotId },
-          update: {
-            selectedIdsJson: snapshot.type === QuestionType.WRITTEN
-              ? Prisma.JsonNull
-              : (selectedIds as Prisma.InputJsonValue),
-            writtenText: snapshot.type === QuestionType.WRITTEN
-              ? mutation.writtenText ?? ""
-              : null,
-            markedForReview: mutation.markedForReview,
-            clientSeq: mutation.clientSeq,
-            savedAt: now,
-          },
-          create: {
-            attemptId: attempt.id,
-            snapshotId: mutation.snapshotId,
-            selectedIdsJson: snapshot.type === QuestionType.WRITTEN
-              ? Prisma.JsonNull
-              : (selectedIds as Prisma.InputJsonValue),
-            writtenText: snapshot.type === QuestionType.WRITTEN
-              ? mutation.writtenText ?? ""
-              : null,
-            markedForReview: mutation.markedForReview,
-            clientSeq: mutation.clientSeq,
-            savedAt: now,
-          },
-        });
-        accepted += 1;
-        highestClientSeq = Math.max(highestClientSeq, mutation.clientSeq);
+  let result: { accepted: number; ignored: number; highestClientSeq: number; attempt: AttemptWithWorkspace };
+  try {
+    result = await runSerializableWithRetry(async (tx) => {
+      const attempt = await loadWorkspaceAttemptInTransaction(tx, attemptId);
+      assertAttemptAccess(actor, attempt);
+      if (attempt.status !== AttemptStatus.IN_PROGRESS) {
+        throw new ConflictError("This attempt no longer accepts answers", "ATTEMPT_FINALIZED");
       }
-      await tx.attempt.update({
-        where: { id: attempt.id },
-        data: { lastClientSeq: highestClientSeq, lastHeartbeatAt: now },
+      if (now > calculateAnswerCutoff(attempt.hardDeadlineAt, attempt.timeExtensionMinutes)) {
+        await tx.attempt.updateMany({
+          where: { id: attempt.id, status: AttemptStatus.IN_PROGRESS },
+          data: { status: AttemptStatus.EXPIRED, submittedAt: now },
+        });
+        return { accepted: 0, ignored: 0, highestClientSeq: attempt.lastClientSeq, attempt };
+      }
+
+      const mutationResult = await applyMutationsInTransaction(tx, attempt, mutations, now);
+      const updated = await tx.attempt.updateMany({
+        where: { id: attempt.id, status: AttemptStatus.IN_PROGRESS },
+        data: { lastClientSeq: mutationResult.highestClientSeq, lastHeartbeatAt: now },
       });
+      if (updated.count !== 1) {
+        throw new ConflictError("This attempt no longer accepts answers", "ATTEMPT_FINALIZED");
+      }
+      const connectionGapMs = now.getTime() - attempt.lastHeartbeatAt.getTime();
       if (connectionGapMs > 15_000) {
         await tx.attemptEvent.create({
           data: {
@@ -512,19 +573,39 @@ export async function syncAnswers(
           },
         });
       }
-    },
-    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-  );
+      return { ...mutationResult, attempt };
+    });
+  } catch (error: unknown) {
+    if (isSerializationFailure(error)) {
+      throw new ConflictError(
+        "Answers could not be saved because another update is in progress. Retry synchronization.",
+        "SYNC_RETRY_REQUIRED",
+      );
+    }
+    throw error;
+  }
+
+  if (now > calculateAnswerCutoff(result.attempt.hardDeadlineAt, result.attempt.timeExtensionMinutes)) {
+    throw new ConflictError("The examination time limit has expired", "ATTEMPT_EXPIRED");
+  }
 
   publishExamEvent({
     type: "ATTEMPT_PROGRESS",
-    examId: attempt.examId,
-    attemptId: attempt.id,
-    userId: attempt.userId,
-    payload: { accepted, ignored, lastClientSeq: highestClientSeq },
+    examId: result.attempt.examId,
+    attemptId: result.attempt.id,
+    userId: result.attempt.userId,
+    payload: {
+      accepted: result.accepted,
+      ignored: result.ignored,
+      lastClientSeq: result.highestClientSeq,
+    },
   });
 
-  return { accepted, ignored, attempt: await getAttempt(actor, attempt.id, now) };
+  return {
+    accepted: result.accepted,
+    ignored: result.ignored,
+    attempt: await getAttempt(actor, result.attempt.id, now),
+  };
 }
 
 export async function heartbeatAttempt(actor: SessionUser, attemptId: string, now = new Date()): Promise<AttemptDto> {
@@ -564,23 +645,73 @@ export async function recordAttemptEvent(
   });
 }
 
-export async function submitAttempt(actor: SessionUser, attemptId: string, now = new Date()): Promise<AttemptDto> {
-  const attempt = await loadWorkspaceAttempt(attemptId);
-  assertAttemptAccess(actor, attempt);
-  const effectiveDeadline = calculateEffectiveDeadline(attempt.hardDeadlineAt, attempt.timeExtensionMinutes);
-  const targetStatus = now > effectiveDeadline ? AttemptStatus.EXPIRED : AttemptStatus.SUBMITTED;
-  if (attempt.status === AttemptStatus.IN_PROGRESS) {
-    await db.attempt.updateMany({
-      where: { id: attempt.id, status: AttemptStatus.IN_PROGRESS },
-      data: { status: targetStatus, submittedAt: now },
+export async function submitAttempt(
+  actor: SessionUser,
+  attemptId: string,
+  pendingMutations: AnswerMutation[] = [],
+  now = new Date(),
+): Promise<AttemptDto> {
+  let result: {
+    attempt: AttemptWithWorkspace;
+    transitioned: boolean;
+    targetStatus: AttemptStatus;
+  };
+  try {
+    result = await runSerializableWithRetry(async (tx) => {
+      const attempt = await loadWorkspaceAttemptInTransaction(tx, attemptId);
+      assertAttemptAccess(actor, attempt);
+      if (attempt.status !== AttemptStatus.IN_PROGRESS) {
+        return { attempt, transitioned: false, targetStatus: attempt.status };
+      }
+
+      const effectiveDeadline = calculateEffectiveDeadline(
+        attempt.hardDeadlineAt,
+        attempt.timeExtensionMinutes,
+      );
+      const withinAnswerWindow = now <= calculateAnswerCutoff(
+        attempt.hardDeadlineAt,
+        attempt.timeExtensionMinutes,
+      );
+      let highestClientSeq = attempt.lastClientSeq;
+      if (withinAnswerWindow && pendingMutations.length > 0) {
+        highestClientSeq = (
+          await applyMutationsInTransaction(tx, attempt, pendingMutations, now)
+        ).highestClientSeq;
+      }
+
+      const targetStatus = now > effectiveDeadline
+        ? AttemptStatus.EXPIRED
+        : AttemptStatus.SUBMITTED;
+      const updated = await tx.attempt.updateMany({
+        where: { id: attempt.id, status: AttemptStatus.IN_PROGRESS },
+        data: { status: targetStatus, submittedAt: now, lastClientSeq: highestClientSeq },
+      });
+      if (updated.count !== 1) {
+        throw new ConflictError(
+          "The attempt changed while final submission was being processed. Retry submission.",
+          "SUBMIT_RETRY_REQUIRED",
+        );
+      }
+      return { attempt, transitioned: true, targetStatus };
     });
-    if (!attempt.isSandbox) await recomputeAttemptTotals(attempt.id);
+  } catch (error: unknown) {
+    if (isSerializationFailure(error)) {
+      throw new ConflictError(
+        "Your answers are still being saved. Retry final submission.",
+        "SUBMIT_RETRY_REQUIRED",
+      );
+    }
+    throw error;
+  }
+
+  if (result.transitioned) {
+    if (!result.attempt.isSandbox) await recomputeAttemptTotals(result.attempt.id);
     publishExamEvent({
       type: "ATTEMPT_SUBMITTED",
-      examId: attempt.examId,
-      attemptId: attempt.id,
-      userId: attempt.userId,
-      payload: { status: targetStatus },
+      examId: result.attempt.examId,
+      attemptId: result.attempt.id,
+      userId: result.attempt.userId,
+      payload: { status: result.targetStatus },
     });
   }
   return getAttempt(actor, attemptId, now);

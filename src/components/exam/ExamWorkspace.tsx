@@ -267,7 +267,7 @@ export function ExamWorkspace({ examId, mode }: { examId: string; mode: "candida
         setMilestoneNotice("1 minute remaining — check unanswered items and prepare for submission.");
       }
       setRemainingSeconds(seconds);
-      if (seconds === 0 && attemptRef.current?.status === "IN_PROGRESS") void finalizeAttempt(true);
+      if (seconds === 0 && attemptRef.current?.status === "IN_PROGRESS") void finalizeAttempt();
     };
     update();
     const timer = window.setInterval(update, 1000);
@@ -518,7 +518,7 @@ export function ExamWorkspace({ examId, mode }: { examId: string; mode: "candida
     else void flushQueue(currentAttempt.id);
   }
 
-  async function finalizeAttempt(automatic = false) {
+  async function finalizeAttempt() {
     const current = attemptRef.current;
     if (!current || submitInFlightRef.current || current.status !== "IN_PROGRESS") return;
     submitInFlightRef.current = true;
@@ -538,9 +538,15 @@ export function ExamWorkspace({ examId, mode }: { examId: string; mode: "candida
       const response = await fetch(`/api/attempts/${current.id}/submit`, { method: "POST" });
       const body = (await response.json().catch(() => null)) as { attempt?: AttemptDto } | null;
       if (!response.ok || !body?.attempt) throw new Error(errorMessage(body, "Unable to submit this attempt"));
+      await removeAcknowledgedMutations(current.id, pending);
+      setQueuedCount(0);
+      setSyncState("SYNCED");
       setAttempt(body.attempt);
       setReviewOpen(false);
     } catch (submitError: unknown) {
+      const pending = await getQueuedMutations(current.id);
+      setQueuedCount(pending.length);
+      if (pending.length > 0) setSyncState(navigator.onLine ? "SYNC_ERROR" : "OFFLINE_QUEUED");
       setError(submitError instanceof Error ? submitError.message : "Unable to submit this attempt");
     } finally {
       submitInFlightRef.current = false;
