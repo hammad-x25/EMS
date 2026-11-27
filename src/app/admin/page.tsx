@@ -68,48 +68,39 @@ export default async function AdminOverviewPage() {
             title="No examinations created"
           />
         ) : (
-          <>
-            <div className="hidden md:block">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-[var(--bg-surface-subtle)] text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)]">
-                  <tr>
-                    <th className="p-4">Exam</th>
-                    <th className="p-4">Examiner</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4 text-right">Enrollment</th>
-                    <th className="p-4 text-right">Attempts</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentExams.map((exam) => (
-                    <tr className="border-t border-[var(--border-subtle)]" key={exam.id}>
-                      <td className="p-4 font-semibold text-[var(--text-primary)]">{exam.title}</td>
-                      <td className="p-4 text-[var(--text-secondary)]">{exam.createdBy.name}</td>
-                      <td className="p-4">
-                        <StatusBadge status={exam.status} />
-                      </td>
-                      <td className="font-mono-tabular p-4 text-right">{exam._count.enrollments}</td>
-                      <td className="font-mono-tabular p-4 text-right">{exam._count.attempts}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="divide-y divide-[var(--border-subtle)] md:hidden">
+          <table className="w-full text-left text-sm">
+            <thead className="hidden bg-[var(--bg-surface-subtle)] text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)] md:table-header-group">
+              <tr>
+                <th className="p-4">Exam</th>
+                <th className="p-4">Examiner</th>
+                <th className="p-4">Status</th>
+                <th className="p-4 text-right">Enrollment</th>
+                <th className="p-4 text-right">Attempts</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border-subtle)] md:divide-y-0">
               {recentExams.map((exam) => (
-                <div className="space-y-2 p-4" key={exam.id}>
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="font-semibold text-[var(--text-primary)]">{exam.title}</p>
+                <tr className="block space-y-1.5 p-4 md:table-row md:space-y-0 md:border-t md:border-[var(--border-subtle)] md:p-0" key={exam.id}>
+                  <td className="block font-semibold text-[var(--text-primary)] md:table-cell md:p-4">{exam.title}</td>
+                  <td className="block text-xs text-[var(--text-secondary)] md:table-cell md:p-4 md:text-sm">
+                    <span className="md:hidden">Examiner: </span>
+                    {exam.createdBy.name}
+                  </td>
+                  <td className="block md:table-cell md:p-4">
                     <StatusBadge status={exam.status} />
-                  </div>
-                  <p className="text-xs text-[var(--text-secondary)]">Examiner: {exam.createdBy.name}</p>
-                  <p className="font-mono-tabular text-xs text-[var(--text-muted)]">
-                    {exam._count.enrollments} enrolled · {exam._count.attempts} attempts
-                  </p>
-                </div>
+                  </td>
+                  <td className="font-mono-tabular block text-xs md:table-cell md:p-4 md:text-right md:text-sm">
+                    <span className="md:hidden">Enrolled: </span>
+                    {exam._count.enrollments}
+                  </td>
+                  <td className="font-mono-tabular block text-xs md:table-cell md:p-4 md:text-right md:text-sm">
+                    <span className="md:hidden">Attempts: </span>
+                    {exam._count.attempts}
+                  </td>
+                </tr>
               ))}
-            </div>
-          </>
+            </tbody>
+          </table>
         )}
       </section>
     </div>

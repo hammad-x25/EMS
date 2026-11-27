@@ -284,138 +284,88 @@ export function AdminUserManager({
           />
         ) : (
           <>
-            <div className="hidden md:block">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-[var(--bg-surface-subtle)] text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)]">
-                  <tr>
-                    <th className="p-4">User</th>
-                    <th className="p-4">Role</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4">Created</th>
-                    <th className="p-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((user) => (
-                    <tr className="border-t border-[var(--border-subtle)]" key={user.id}>
-                      <td className="p-4">
-                        <p className="font-semibold text-[var(--text-primary)]">{user.name}</p>
-                        <p className="text-xs text-[var(--text-secondary)]">
-                          {user.email}
-                          {user.studentId ? ` · ${user.studentId}` : ""}
-                        </p>
-                      </td>
-                      <td className="p-4">
-                        <select
-                          aria-label={`Role for ${user.name}`}
-                          className="field min-w-36 py-1.5"
-                          disabled={busyId === user.id}
-                          onChange={(event) => {
-                            const nextRole = event.target.value as Role;
-                            if (nextRole !== user.role) {
-                              setPendingRoleTarget({ user, nextRole });
-                            }
-                          }}
-                          value={user.role}
-                        >
-                          {roles.map((role) => (
-                            <option key={role} value={role}>
-                              {role}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="p-4">
-                        <StatusBadge status={user.isActive ? "ACTIVE" : "INACTIVE"} />
-                      </td>
-                      <td className="font-mono-tabular whitespace-nowrap p-4 text-xs text-[var(--text-secondary)]">
-                        {new Date(user.createdAt).toLocaleDateString()}
-                      </td>
-                      <td className="p-4">
-                        <div className="flex justify-end gap-2">
-                          <button
-                            aria-label={`Reset password for ${user.name}`}
-                            className="btn-secondary h-9 px-3 text-xs"
-                            onClick={() => {
-                              setResetError(null);
-                              setResetTarget(user);
-                            }}
-                            type="button"
-                          >
-                            <KeyRound size={15} /> Reset
-                          </button>
-                          <button
-                            className={user.isActive ? "btn-danger h-9 px-3 text-xs" : "btn-secondary h-9 px-3 text-xs"}
-                            disabled={busyId === user.id}
-                            onClick={() =>
-                              setPendingStatusTarget({ user, nextActive: !user.isActive })
-                            }
-                            type="button"
-                          >
-                            {user.isActive ? "Deactivate" : "Activate"}
-                          </button>
+            <table className="w-full text-left text-sm">
+              <thead className="hidden bg-[var(--bg-surface-subtle)] text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)] md:table-header-group">
+                <tr>
+                  <th className="p-4">User</th>
+                  <th className="p-4">Role</th>
+                  <th className="p-4">Status</th>
+                  <th className="p-4">Created</th>
+                  <th className="p-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--border-subtle)] md:divide-y-0">
+                {users.map((user) => (
+                  <tr className="block space-y-2.5 p-4 md:table-row md:space-y-0 md:border-t md:border-[var(--border-subtle)] md:p-0" key={user.id}>
+                    <td className="block md:table-cell md:p-4">
+                      <div className="flex items-start justify-between gap-2 md:block">
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-[var(--text-primary)]">{user.name}</p>
+                          <p className="truncate text-xs text-[var(--text-secondary)]">
+                            {user.email}
+                            {user.studentId ? ` · ${user.studentId}` : ""}
+                          </p>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="divide-y divide-[var(--border-subtle)] md:hidden">
-              {users.map((user) => (
-                <article className="space-y-3 p-4" key={user.id}>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold text-[var(--text-primary)]">{user.name}</p>
-                      <p className="truncate text-xs text-[var(--text-secondary)]">{user.email}</p>
-                      {user.studentId ? (
-                        <p className="font-mono-tabular text-xs text-[var(--text-muted)]">{user.studentId}</p>
-                      ) : null}
-                    </div>
-                    <StatusBadge status={user.isActive ? "ACTIVE" : "INACTIVE"} />
-                  </div>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                    <select
-                      aria-label={`Role for ${user.name}`}
-                      className="field py-1.5"
-                      disabled={busyId === user.id}
-                      onChange={(event) => {
-                        const nextRole = event.target.value as Role;
-                        if (nextRole !== user.role) {
-                          setPendingRoleTarget({ user, nextRole });
-                        }
-                      }}
-                      value={user.role}
-                    >
-                      {roles.map((role) => (
-                        <option key={role} value={role}>
-                          {role}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      className="btn-secondary h-9 text-xs"
-                      onClick={() => {
-                        setResetError(null);
-                        setResetTarget(user);
-                      }}
-                      type="button"
-                    >
-                      <KeyRound size={14} /> Reset password
-                    </button>
-                    <button
-                      className={user.isActive ? "btn-danger h-9 text-xs" : "btn-secondary h-9 text-xs"}
-                      disabled={busyId === user.id}
-                      onClick={() => setPendingStatusTarget({ user, nextActive: !user.isActive })}
-                      type="button"
-                    >
-                      {user.isActive ? "Deactivate" : "Activate"}
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
+                        <div className="md:hidden">
+                          <StatusBadge status={user.isActive ? "ACTIVE" : "INACTIVE"} />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="block md:table-cell md:p-4">
+                      <select
+                        aria-label={`Role for ${user.name}`}
+                        className="field min-w-36 py-1.5"
+                        disabled={busyId === user.id}
+                        onChange={(event) => {
+                          const nextRole = event.target.value as Role;
+                          if (nextRole !== user.role) {
+                            setPendingRoleTarget({ user, nextRole });
+                          }
+                        }}
+                        value={user.role}
+                      >
+                        {roles.map((role) => (
+                          <option key={role} value={role}>
+                            {role}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="hidden md:table-cell md:p-4">
+                      <StatusBadge status={user.isActive ? "ACTIVE" : "INACTIVE"} />
+                    </td>
+                    <td className="font-mono-tabular hidden whitespace-nowrap text-xs text-[var(--text-secondary)] md:table-cell md:p-4">
+                      {new Date(user.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="block md:table-cell md:p-4">
+                      <div className="grid grid-cols-2 gap-2 md:flex md:justify-end">
+                        <button
+                          aria-label={`Reset password for ${user.name}`}
+                          className="btn-secondary h-9 px-3 text-xs"
+                          onClick={() => {
+                            setResetError(null);
+                            setResetTarget(user);
+                          }}
+                          type="button"
+                        >
+                          <KeyRound size={15} /> Reset
+                        </button>
+                        <button
+                          className={user.isActive ? "btn-danger h-9 px-3 text-xs" : "btn-secondary h-9 px-3 text-xs"}
+                          disabled={busyId === user.id}
+                          onClick={() =>
+                            setPendingStatusTarget({ user, nextActive: !user.isActive })
+                          }
+                          type="button"
+                        >
+                          {user.isActive ? "Deactivate" : "Activate"}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </>
         )}
 
@@ -474,6 +424,7 @@ export function AdminUserManager({
             className="md:col-span-2"
             error={createErrors.password}
             hint="At least 12 characters with upper/lowercase, number, and symbol."
+            htmlFor="create-user-password"
             label="Temporary password"
             required
           >
@@ -481,13 +432,15 @@ export function AdminUserManager({
               <input
                 aria-invalid={Boolean(createErrors.password)}
                 className="field pr-10"
+                id="create-user-password"
                 minLength={12}
                 name="password"
                 required
                 type={showCreatePassword ? "text" : "password"}
               />
               <button
-                aria-label={showCreatePassword ? "Hide password" : "Show password"}
+                aria-label={showCreatePassword ? "Hide entered characters" : "Reveal entered characters"}
+                aria-pressed={showCreatePassword}
                 className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1.5 text-[var(--text-muted)] hover:bg-[var(--bg-surface-subtle)]"
                 onClick={() => setShowCreatePassword((v) => !v)}
                 type="button"
@@ -525,6 +478,7 @@ export function AdminUserManager({
             <FormField
               error={resetError ?? undefined}
               hint="Minimum 12 characters including uppercase, lowercase, number, and symbol. Active sessions will be revoked."
+              htmlFor="reset-user-password"
               label="New temporary password"
               required
             >
@@ -532,13 +486,15 @@ export function AdminUserManager({
                 <input
                   aria-invalid={Boolean(resetError)}
                   className="field pr-10"
+                  id="reset-user-password"
                   minLength={12}
                   name="password"
                   required
                   type={showResetPassword ? "text" : "password"}
                 />
                 <button
-                  aria-label={showResetPassword ? "Hide password" : "Show password"}
+                  aria-label={showResetPassword ? "Hide entered characters" : "Reveal entered characters"}
+                  aria-pressed={showResetPassword}
                   className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1.5 text-[var(--text-muted)] hover:bg-[var(--bg-surface-subtle)]"
                   onClick={() => setShowResetPassword((v) => !v)}
                   type="button"

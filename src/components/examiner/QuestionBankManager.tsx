@@ -370,100 +370,70 @@ export function QuestionBankManager({
             title={loadingList ? "Loading question bank" : "No questions found"}
           />
         ) : (
-          <>
-            <div className="hidden md:block">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-[var(--bg-surface-subtle)] text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)]">
-                  <tr>
-                    <th className="p-4">Prompt</th>
-                    <th className="p-4">Topic</th>
-                    <th className="p-4">Difficulty</th>
-                    <th className="p-4">Type</th>
-                    <th className="p-4 text-right">Marks</th>
-                    <th className="p-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {questions.map((q) => (
-                    <tr className="border-t border-[var(--border-subtle)]" key={q.id}>
-                      <td className="max-w-md p-4">
-                        <p className="line-clamp-2 font-semibold text-[var(--text-primary)]">{q.prompt}</p>
-                        <p className="mt-1 text-xs text-[var(--text-muted)]">
-                          Used in {q.assignedExamCount} exam{q.assignedExamCount === 1 ? "" : "s"}
-                        </p>
-                      </td>
-                      <td className="p-4 font-medium">{q.topic}</td>
-                      <td className="p-4">
-                        <StatusBadge status={q.difficulty} />
-                      </td>
-                      <td className="p-4 text-xs font-semibold text-[var(--text-secondary)]">
-                        {q.type.replaceAll("_", " ")}
-                      </td>
-                      <td className="font-mono-tabular p-4 text-right font-bold">{q.maxMarks}</td>
-                      <td className="p-4">
-                        <div className="flex justify-end gap-2">
-                          <button
-                            aria-label={`Preview question ${q.topic}`}
-                            className="btn-secondary h-9 px-2.5"
-                            onClick={() => setPreviewTarget(q)}
-                            type="button"
-                          >
-                            <Eye size={15} />
-                          </button>
-                          <button
-                            aria-label={`Edit question ${q.topic}`}
-                            className="btn-secondary h-9 px-2.5"
-                            onClick={() => openEdit(q)}
-                            type="button"
-                          >
-                            <Pencil size={15} />
-                          </button>
-                          <button
-                            aria-label={`Delete question ${q.topic}`}
-                            className="btn-danger h-9 px-2.5"
-                            disabled={busy}
-                            onClick={() => setDeleteTarget(q)}
-                            type="button"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="divide-y divide-[var(--border-subtle)] md:hidden">
+          <table className="w-full text-left text-sm">
+            <thead className="hidden bg-[var(--bg-surface-subtle)] text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)] md:table-header-group">
+              <tr>
+                <th className="p-4">Prompt</th>
+                <th className="p-4">Topic</th>
+                <th className="p-4">Difficulty</th>
+                <th className="p-4">Type</th>
+                <th className="p-4 text-right">Marks</th>
+                <th className="p-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border-subtle)] md:divide-y-0">
               {questions.map((q) => (
-                <article className="space-y-3 p-4" key={q.id}>
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-xs font-bold text-[var(--accent-primary)]">{q.topic}</span>
-                    <div className="flex items-center gap-2">
-                      <StatusBadge status={q.difficulty} />
-                      <span className="font-mono-tabular text-xs font-bold">{q.maxMarks}m</span>
-                    </div>
-                  </div>
-                  <p className="text-sm font-semibold text-[var(--text-primary)]">{q.prompt}</p>
-                  <div className="flex items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
-                    <span>{q.type.replaceAll("_", " ")} · {q.assignedExamCount} exam(s)</span>
-                    <div className="flex gap-2">
-                      <button aria-label="Preview" className="btn-secondary h-9 px-2.5" onClick={() => setPreviewTarget(q)} type="button">
+                <tr className="block space-y-2 p-4 md:table-row md:space-y-0 md:border-t md:border-[var(--border-subtle)] md:p-0" key={q.id}>
+                  <td className="block max-w-md md:table-cell md:p-4">
+                    <p className="line-clamp-2 font-semibold text-[var(--text-primary)]">{q.prompt}</p>
+                    <p className="mt-1 text-xs text-[var(--text-muted)]">
+                      Used in {q.assignedExamCount} exam{q.assignedExamCount === 1 ? "" : "s"}
+                    </p>
+                  </td>
+                  <td className="block font-medium md:table-cell md:p-4">{q.topic}</td>
+                  <td className="inline-block pr-2 md:table-cell md:p-4">
+                    <StatusBadge status={q.difficulty} />
+                  </td>
+                  <td className="inline-block text-xs font-semibold text-[var(--text-secondary)] md:table-cell md:p-4">
+                    {q.type.replaceAll("_", " ")}
+                  </td>
+                  <td className="font-mono-tabular inline-block pl-2 font-bold md:table-cell md:p-4 md:text-right">
+                    {q.maxMarks}
+                    <span className="md:hidden">m</span>
+                  </td>
+                  <td className="block md:table-cell md:p-4">
+                    <div className="flex justify-end gap-2">
+                      <button
+                        aria-label={`Preview question ${q.topic}`}
+                        className="btn-secondary h-9 px-2.5"
+                        onClick={() => setPreviewTarget(q)}
+                        type="button"
+                      >
                         <Eye size={15} />
                       </button>
-                      <button aria-label="Edit" className="btn-secondary h-9 px-2.5" onClick={() => openEdit(q)} type="button">
+                      <button
+                        aria-label={`Edit question ${q.topic}`}
+                        className="btn-secondary h-9 px-2.5"
+                        onClick={() => openEdit(q)}
+                        type="button"
+                      >
                         <Pencil size={15} />
                       </button>
-                      <button aria-label="Delete" className="btn-danger h-9 px-2.5" onClick={() => setDeleteTarget(q)} type="button">
+                      <button
+                        aria-label={`Delete question ${q.topic}`}
+                        className="btn-danger h-9 px-2.5"
+                        disabled={busy}
+                        onClick={() => setDeleteTarget(q)}
+                        type="button"
+                      >
                         <Trash2 size={15} />
                       </button>
                     </div>
-                  </div>
-                </article>
+                  </td>
+                </tr>
               ))}
-            </div>
-          </>
+            </tbody>
+          </table>
         )}
 
         <PaginationControls

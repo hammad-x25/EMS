@@ -151,64 +151,40 @@ export function EnrollmentsTab({
             title={enrollments.length === 0 ? "No candidates enrolled yet" : "No matching enrollments"}
           />
         ) : (
-          <>
-            <div className="hidden md:block">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-[var(--bg-surface-subtle)] text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)]">
-                  <tr>
-                    <th className="p-4">Candidate</th>
-                    <th className="p-4">Student ID</th>
-                    <th className="p-4">Enrolled At</th>
-                    <th className="p-4 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pagedEnrollments.map((entry) => (
-                    <tr className="border-t border-[var(--border-subtle)]" key={entry.id}>
-                      <td className="p-4">
-                        <p className="font-semibold text-[var(--text-primary)]">{entry.candidate.name}</p>
-                        <p className="text-xs text-[var(--text-secondary)]">{entry.candidate.email}</p>
-                      </td>
-                      <td className="font-mono-tabular p-4 text-xs">{entry.candidate.studentId ?? "—"}</td>
-                      <td className="font-mono-tabular p-4 text-xs text-[var(--text-secondary)]">
-                        {new Date(entry.enrolledAt).toLocaleString()}
-                      </td>
-                      <td className="p-4 text-right">
-                        <button
-                          className="btn-danger h-9 px-3 text-xs"
-                          disabled={busy}
-                          onClick={() => setRemoveTarget(entry)}
-                          type="button"
-                        >
-                          <Trash2 size={14} /> Remove
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="divide-y divide-[var(--border-subtle)] md:hidden">
+          <table className="w-full text-left text-sm">
+            <thead className="hidden bg-[var(--bg-surface-subtle)] text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)] md:table-header-group">
+              <tr>
+                <th className="p-4">Candidate</th>
+                <th className="p-4">Student ID</th>
+                <th className="p-4">Enrolled At</th>
+                <th className="p-4 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border-subtle)] md:divide-y-0">
               {pagedEnrollments.map((entry) => (
-                <div className="flex items-center justify-between gap-3 p-4" key={entry.id}>
-                  <div className="min-w-0">
+                <tr className="block space-y-2 p-4 md:table-row md:space-y-0 md:border-t md:border-[var(--border-subtle)] md:p-0" key={entry.id}>
+                  <td className="block md:table-cell md:p-4">
                     <p className="truncate font-semibold text-[var(--text-primary)]">{entry.candidate.name}</p>
                     <p className="truncate text-xs text-[var(--text-secondary)]">{entry.candidate.email}</p>
-                    <p className="font-mono-tabular text-xs text-[var(--text-muted)]">{entry.candidate.studentId ?? "—"}</p>
-                  </div>
-                  <button
-                    className="btn-danger h-9 shrink-0 px-3 text-xs"
-                    disabled={busy}
-                    onClick={() => setRemoveTarget(entry)}
-                    type="button"
-                  >
-                    Remove
-                  </button>
-                </div>
+                  </td>
+                  <td className="font-mono-tabular block text-xs md:table-cell md:p-4">{entry.candidate.studentId ?? "—"}</td>
+                  <td className="font-mono-tabular block text-xs text-[var(--text-secondary)] md:table-cell md:p-4">
+                    {new Date(entry.enrolledAt).toLocaleString()}
+                  </td>
+                  <td className="block text-right md:table-cell md:p-4">
+                    <button
+                      className="btn-danger h-9 px-3 text-xs"
+                      disabled={busy}
+                      onClick={() => setRemoveTarget(entry)}
+                      type="button"
+                    >
+                      <Trash2 size={14} /> Remove
+                    </button>
+                  </td>
+                </tr>
               ))}
-            </div>
-          </>
+            </tbody>
+          </table>
         )}
 
         <PaginationControls

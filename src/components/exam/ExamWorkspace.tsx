@@ -590,9 +590,24 @@ export function ExamWorkspace({ examId, mode }: { examId: string; mode: "candida
         <div className="card mx-auto max-w-xl space-y-4 p-8">
           <h1 className="text-xl font-bold text-[var(--text-primary)]">Examination unavailable</h1>
           <AlertBanner variant="error">{error ?? "Unable to load examination attempt."}</AlertBanner>
-          <Link className="btn-secondary" href={mode === "sandbox" ? `/examiner/exams/${examId}` : "/candidate/dashboard"}>
-            Return
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              className="btn-secondary"
+              href={mode === "sandbox" ? `/examiner/exams/${examId}` : "/candidate/dashboard"}
+            >
+              Return
+            </Link>
+            {mode === "sandbox" ? (
+              <button
+                className="btn-primary"
+                disabled={resetting}
+                onClick={() => void resetSandbox()}
+                type="button"
+              >
+                <RotateCcw size={16} /> {resetting ? "Resetting…" : "Reset sandbox attempt"}
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
     );

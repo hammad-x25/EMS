@@ -211,93 +211,65 @@ export function MonitorDashboard({
             title={snapshot.attempts.length === 0 ? "No active attempts yet" : "No matching candidates"}
           />
         ) : (
-          <>
-            <div className="hidden md:block">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-[var(--bg-surface-subtle)] text-xs font-bold uppercase text-[var(--text-secondary)]">
-                  <tr>
-                    <th className="p-3.5">Candidate</th>
-                    <th className="p-3.5">Progress</th>
-                    <th className="p-3.5">Connection</th>
-                    <th className="p-3.5">Effective deadline</th>
-                    <th className="p-3.5">Signals</th>
-                    <th className="p-3.5 text-right">Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredAttempts.map((attempt) => (
-                    <tr className="border-t border-[var(--border-subtle)]" key={attempt.id}>
-                      <td className="p-3.5">
-                        <p className="font-semibold text-[var(--text-primary)]">{attempt.candidate.name}</p>
-                        <p className="font-mono-tabular text-xs text-[var(--text-muted)]">
-                          {attempt.candidate.studentId ?? "No student ID"}
-                        </p>
-                      </td>
-                      <td className="font-mono-tabular p-3.5 font-semibold">
-                        {attempt.answered}/{attempt.totalQuestions} answered
-                      </td>
-                      <td className="p-3.5">
-                        {attempt.connection === "ONLINE" ? (
-                          <StatusBadge label="Online" status="ONLINE" />
-                        ) : attempt.connection === "GAP" ? (
-                          <StatusBadge label={`Gap ${attempt.gapSeconds}s`} status="GAP" />
-                        ) : (
-                          <StatusBadge status={attempt.status} />
-                        )}
-                      </td>
-                      <td className="font-mono-tabular p-3.5 text-xs">
-                        <Clock3 aria-hidden="true" className="mr-1 inline" size={13} />
-                        {new Date(attempt.effectiveDeadlineAt).toLocaleString()}
-                        {attempt.timeExtensionMinutes ? (
-                          <span className="ml-1 font-bold text-[var(--accent-primary)]">
-                            (+{attempt.timeExtensionMinutes}m)
-                          </span>
-                        ) : null}
-                      </td>
-                      <td className="p-3.5">
-                        <span className="status-pill border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]">
-                          <ShieldAlert aria-hidden="true" size={13} /> {attempt.incidentCount}
-                        </span>
-                      </td>
-                      <td className="p-3.5 text-right">
-                        <button
-                          className="btn-secondary h-9 px-3 text-xs"
-                          onClick={() => setSelected(attempt)}
-                          type="button"
-                        >
-                          Inspect
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="divide-y divide-[var(--border-subtle)] md:hidden">
+          <table className="w-full text-left text-sm">
+            <thead className="hidden bg-[var(--bg-surface-subtle)] text-xs font-bold uppercase text-[var(--text-secondary)] md:table-header-group">
+              <tr>
+                <th className="p-3.5">Candidate</th>
+                <th className="p-3.5">Progress</th>
+                <th className="p-3.5">Connection</th>
+                <th className="p-3.5">Effective deadline</th>
+                <th className="p-3.5">Signals</th>
+                <th className="p-3.5 text-right">Details</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border-subtle)] md:divide-y-0">
               {filteredAttempts.map((attempt) => (
-                <article className="space-y-2 p-4" key={attempt.id}>
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="font-semibold">{attempt.candidate.name}</p>
-                      <p className="font-mono-tabular text-xs text-[var(--text-muted)]">
-                        {attempt.answered}/{attempt.totalQuestions} answered · {attempt.incidentCount} signal(s)
-                      </p>
-                    </div>
-                    <StatusBadge
-                      label={attempt.connection === "GAP" ? `Gap ${attempt.gapSeconds}s` : undefined}
-                      status={attempt.connection === "ONLINE" || attempt.connection === "GAP" ? attempt.connection : attempt.status}
-                    />
-                  </div>
-                  <div className="flex justify-end">
-                    <button className="btn-secondary h-9 px-3 text-xs" onClick={() => setSelected(attempt)} type="button">
-                      Inspect timeline
+                <tr className="block space-y-2 p-4 md:table-row md:space-y-0 md:border-t md:border-[var(--border-subtle)] md:p-0" key={attempt.id}>
+                  <td className="block md:table-cell md:p-3.5">
+                    <p className="font-semibold text-[var(--text-primary)]">{attempt.candidate.name}</p>
+                    <p className="font-mono-tabular text-xs text-[var(--text-muted)]">
+                      {attempt.candidate.studentId ?? "No student ID"}
+                    </p>
+                  </td>
+                  <td className="font-mono-tabular block font-semibold md:table-cell md:p-3.5">
+                    {attempt.answered}/{attempt.totalQuestions} answered
+                  </td>
+                  <td className="inline-block pr-2 md:table-cell md:p-3.5">
+                    {attempt.connection === "ONLINE" ? (
+                      <StatusBadge label="Online" status="ONLINE" />
+                    ) : attempt.connection === "GAP" ? (
+                      <StatusBadge label={`Gap ${attempt.gapSeconds}s`} status="GAP" />
+                    ) : (
+                      <StatusBadge status={attempt.status} />
+                    )}
+                  </td>
+                  <td className="font-mono-tabular block text-xs md:table-cell md:p-3.5">
+                    <Clock3 aria-hidden="true" className="mr-1 inline" size={13} />
+                    {new Date(attempt.effectiveDeadlineAt).toLocaleString()}
+                    {attempt.timeExtensionMinutes ? (
+                      <span className="ml-1 font-bold text-[var(--accent-primary)]">
+                        (+{attempt.timeExtensionMinutes}m)
+                      </span>
+                    ) : null}
+                  </td>
+                  <td className="inline-block md:table-cell md:p-3.5">
+                    <span className="status-pill border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]">
+                      <ShieldAlert aria-hidden="true" size={13} /> {attempt.incidentCount}
+                    </span>
+                  </td>
+                  <td className="block text-right md:table-cell md:p-3.5">
+                    <button
+                      className="btn-secondary h-9 px-3 text-xs"
+                      onClick={() => setSelected(attempt)}
+                      type="button"
+                    >
+                      Inspect
                     </button>
-                  </div>
-                </article>
+                  </td>
+                </tr>
               ))}
-            </div>
-          </>
+            </tbody>
+          </table>
         )}
       </section>
 

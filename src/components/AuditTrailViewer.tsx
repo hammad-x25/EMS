@@ -137,60 +137,37 @@ export function AuditTrailViewer({
             title={loading ? "Loading audit events" : "No matching audit events"}
           />
         ) : (
-          <>
-            <div className="hidden md:block">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-[var(--bg-surface-subtle)] text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)]">
-                  <tr>
-                    <th className="p-4">Time</th>
-                    <th className="p-4">Actor</th>
-                    <th className="p-4">Action</th>
-                    <th className="p-4">Target</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {logs.map((log) => (
-                    <tr className="border-t border-[var(--border-subtle)]" key={log.id}>
-                      <td className="font-mono-tabular whitespace-nowrap p-4 text-xs text-[var(--text-secondary)]">
-                        {new Date(log.createdAt).toLocaleString()}
-                      </td>
-                      <td className="p-4">
-                        <p className="font-semibold text-[var(--text-primary)]">{log.actor.name}</p>
-                        <p className="text-xs text-[var(--text-secondary)]">{log.actor.email}</p>
-                      </td>
-                      <td className="p-4">
-                        <span className="inline-flex rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface-subtle)] px-2.5 py-0.5 text-xs font-semibold text-[var(--text-primary)]">
-                          {log.action.replaceAll("_", " ")}
-                        </span>
-                      </td>
-                      <td className="font-mono-tabular p-4 text-xs text-[var(--text-secondary)]">
-                        {log.entityType} · {log.entityId}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="divide-y divide-[var(--border-subtle)] md:hidden">
+          <table className="w-full text-left text-sm">
+            <thead className="hidden bg-[var(--bg-surface-subtle)] text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)] md:table-header-group">
+              <tr>
+                <th className="p-4">Time</th>
+                <th className="p-4">Actor</th>
+                <th className="p-4">Action</th>
+                <th className="p-4">Target</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border-subtle)] md:divide-y-0">
               {logs.map((log) => (
-                <article className="space-y-1.5 p-4" key={log.id}>
-                  <div className="flex items-start justify-between gap-2">
+                <tr className="block space-y-1.5 p-4 md:table-row md:space-y-0 md:border-t md:border-[var(--border-subtle)] md:p-0" key={log.id}>
+                  <td className="font-mono-tabular block whitespace-nowrap text-xs text-[var(--text-secondary)] md:table-cell md:p-4">
+                    {new Date(log.createdAt).toLocaleString()}
+                  </td>
+                  <td className="block md:table-cell md:p-4">
+                    <p className="font-semibold text-[var(--text-primary)]">{log.actor.name}</p>
+                    <p className="text-xs text-[var(--text-secondary)]">{log.actor.email}</p>
+                  </td>
+                  <td className="block md:table-cell md:p-4">
                     <span className="inline-flex rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface-subtle)] px-2.5 py-0.5 text-xs font-semibold text-[var(--text-primary)]">
                       {log.action.replaceAll("_", " ")}
                     </span>
-                    <span className="font-mono-tabular text-xs text-[var(--text-muted)]">
-                      {new Date(log.createdAt).toLocaleString()}
-                    </span>
-                  </div>
-                  <p className="text-sm font-semibold text-[var(--text-primary)]">{log.actor.name}</p>
-                  <p className="font-mono-tabular text-xs text-[var(--text-secondary)]">
+                  </td>
+                  <td className="font-mono-tabular block text-xs text-[var(--text-secondary)] md:table-cell md:p-4">
                     {log.entityType} · {log.entityId}
-                  </p>
-                </article>
+                  </td>
+                </tr>
               ))}
-            </div>
-          </>
+            </tbody>
+          </table>
         )}
 
         <PaginationControls

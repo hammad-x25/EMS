@@ -91,19 +91,21 @@ export function LoginForm({ demoMode }: { demoMode: boolean }) {
         />
       </FormField>
 
-      <FormField error={fieldErrors.password} label="Password" required>
+      <FormField error={fieldErrors.password} htmlFor="login-password" label="Password" required>
         <div className="relative">
           <input
             aria-invalid={Boolean(fieldErrors.password)}
             autoComplete="current-password"
             className="field pr-10"
+            id="login-password"
             onChange={(event) => setPassword(event.target.value)}
             required
             type={showPassword ? "text" : "password"}
             value={password}
           />
           <button
-            aria-label={showPassword ? "Hide password" : "Show password"}
+            aria-label={showPassword ? "Hide entered characters" : "Reveal entered characters"}
+            aria-pressed={showPassword}
             className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1.5 text-[var(--text-muted)] hover:bg-[var(--bg-surface-subtle)] hover:text-[var(--text-primary)]"
             onClick={() => setShowPassword((value) => !value)}
             type="button"
