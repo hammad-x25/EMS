@@ -119,7 +119,7 @@ export function AdminUserManager({ initialUsers }: { initialUsers: UserDto[] }) 
           <label className="text-sm font-bold">Email<input className="field mt-2" name="email" required type="email" /></label>
           <label className="text-sm font-bold">Role<select className="field mt-2" defaultValue="CANDIDATE" name="role">{roles.map((role) => <option key={role} value={role}>{role}</option>)}</select></label>
           <label className="text-sm font-bold">Student ID <span className="font-normal text-slate-400">(optional)</span><input className="field mt-2" name="studentId" /></label>
-          <label className="text-sm font-bold md:col-span-2">Temporary password<input className="field mt-2" minLength={10} name="password" required type="password" /><span className="mt-1 block text-xs font-normal text-slate-500">At least 10 characters with upper/lowercase, number, and symbol.</span></label>
+          <label className="text-sm font-bold md:col-span-2">Temporary password<input className="field mt-2" minLength={12} name="password" required type="password" /><span className="mt-1 block text-xs font-normal text-slate-500">At least 12 characters with upper/lowercase, number, and symbol.</span></label>
           <div className="md:col-span-2"><button className="btn-primary" disabled={busyId === "create"} type="submit">{busyId === "create" ? "Creating…" : "Create account"}</button></div>
         </form>
       ) : null}
@@ -141,7 +141,7 @@ export function AdminUserManager({ initialUsers }: { initialUsers: UserDto[] }) 
 
       {resetTarget ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/55 p-4" role="dialog" aria-modal="true" aria-labelledby="reset-title">
-          <form className="card w-full max-w-md p-6" onSubmit={resetPassword}><div className="flex items-start justify-between"><div><h2 className="text-xl font-black" id="reset-title">Reset password</h2><p className="muted mt-1 text-sm">Set a temporary password for {resetTarget.name}.</p></div><button aria-label="Close password reset" className="p-1" onClick={() => setResetTarget(null)} type="button"><X /></button></div><label className="mt-5 block text-sm font-bold">New temporary password<input autoFocus className="field mt-2" minLength={10} name="password" required type="password" /></label><div className="mt-5 flex justify-end gap-2"><button className="btn-secondary" onClick={() => setResetTarget(null)} type="button">Cancel</button><button className="btn-primary" disabled={busyId === resetTarget.id} type="submit">Reset password</button></div></form>
+          <form className="card w-full max-w-md p-6" onSubmit={resetPassword}><div className="flex items-start justify-between"><div><h2 className="text-xl font-black" id="reset-title">Reset password</h2><p className="muted mt-1 text-sm">Set a temporary password for {resetTarget.name}.</p></div><button aria-label="Close password reset" className="p-1" onClick={() => setResetTarget(null)} type="button"><X /></button></div><label className="mt-5 block text-sm font-bold">New temporary password<input autoFocus className="field mt-2" minLength={12} name="password" required type="password" /></label><div className="mt-5 flex justify-end gap-2"><button className="btn-secondary" onClick={() => setResetTarget(null)} type="button">Cancel</button><button className="btn-primary" disabled={busyId === resetTarget.id} type="submit">Reset password</button></div></form>
         </div>
       ) : null}
     </div>

@@ -23,7 +23,7 @@ export default async function LoginPage() {
           <p className="eyebrow">Welcome back</p>
           <h2 className="mt-3 text-3xl font-black tracking-tight">Sign in to your workspace</h2>
           <p className="muted mb-8 mt-2">Use your assigned institutional account.</p>
-          <LoginForm demoMode={process.env.NEXT_PUBLIC_DEMO_MODE !== "false"} />
+          <LoginForm demoMode={process.env.NEXT_PUBLIC_DEMO_MODE === "true"} />
         </div>
       </section>
     </main>

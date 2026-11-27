@@ -5,6 +5,7 @@ import { AuthError, ForbiddenError } from "@/lib/errors";
 import { assertAllowedRole, roleHome } from "@/lib/rbac";
 import { signSessionToken, verifySessionToken } from "@/lib/session-token";
 import { toUserDto } from "@/lib/user-dto";
+import { PasswordSchema } from "@/lib/validation";
 
 beforeAll(() => {
   process.env.AUTH_SECRET = "test-auth-secret-with-more-than-thirty-two-characters";
@@ -19,9 +20,27 @@ describe("password and session security", () => {
   });
 
   it("signs an expiring token with the expected identity claims", async () => {
-    const token = await signSessionToken({ userId: "user-1", email: "admin@example.test", name: "Admin", role: Role.ADMIN });
-    await expect(verifySessionToken(token)).resolves.toEqual({ userId: "user-1", email: "admin@example.test", name: "Admin", role: Role.ADMIN });
+    const token = await signSessionToken({
+      userId: "user-1",
+      email: "admin@example.test",
+      name: "Admin",
+      role: Role.ADMIN,
+      tokenVersion: 2,
+    });
+    await expect(verifySessionToken(token)).resolves.toEqual({
+      userId: "user-1",
+      email: "admin@example.test",
+      name: "Admin",
+      role: Role.ADMIN,
+      tokenVersion: 2,
+    });
     await expect(verifySessionToken(`${token}tampered`)).resolves.toBeNull();
+  });
+
+  it("enforces at least 12 characters with mixed complexity on PasswordSchema", () => {
+    expect(PasswordSchema.safeParse("Short1!a").success).toBe(false);
+    expect(PasswordSchema.safeParse("TenChar1!a").success).toBe(false);
+    expect(PasswordSchema.safeParse("StrongPass@123").success).toBe(true);
   });
 });
 
