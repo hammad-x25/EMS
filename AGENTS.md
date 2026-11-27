@@ -1,4 +1,4 @@
-# AGENTS.md — Engineering Rules, Spec-Driven Workflow & Git Playbook
+# AGENTS.md - Engineering Rules, Spec-Driven Workflow & Git Playbook
 
 This repository implements **AegisExam**, a Secure Examination Management System built for the **Technoverse 5.0 Web-e-Thon** using a **Spec-Driven Software Development** methodology.
 
