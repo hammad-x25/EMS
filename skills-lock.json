@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "skills": {
+    "owasp-security-check": {
+      "source": "sergiodxa/agent-skills",
+      "commit": "40e21b46189d5c7de6610b68a25280af863f8775",
+      "sourceType": "github",
+      "skillPath": "skills/owasp-security-check/SKILL.md",
+      "computedHash": "a1439994acc9dfc5e0af601ef66c86dc7f763803c51c97c7d763a2d7fb28f37c"
+    }
+  }
+}

@@ -10,6 +10,7 @@ export type SessionClaims = {
   email: string;
   name: string;
   role: Role;
+  tokenVersion: number;
 };
 
 function authSecret(): Uint8Array {
@@ -21,7 +22,12 @@ function authSecret(): Uint8Array {
 }
 
 export async function signSessionToken(claims: SessionClaims): Promise<string> {
-  return new SignJWT({ email: claims.email, name: claims.name, role: claims.role })
+  return new SignJWT({
+    email: claims.email,
+    name: claims.name,
+    role: claims.role,
+    tokenVersion: claims.tokenVersion,
+  })
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setSubject(claims.userId)
     .setIssuedAt()
@@ -36,11 +42,20 @@ export async function verifySessionToken(token: string): Promise<SessionClaims |
       !payload.sub ||
       typeof payload.email !== "string" ||
       typeof payload.name !== "string" ||
-      !ROLES.includes(payload.role as Role)
+      !ROLES.includes(payload.role as Role) ||
+      typeof payload.tokenVersion !== "number" ||
+      !Number.isInteger(payload.tokenVersion) ||
+      payload.tokenVersion < 0
     ) {
       return null;
     }
-    return { userId: payload.sub, email: payload.email, name: payload.name, role: payload.role as Role };
+    return {
+      userId: payload.sub,
+      email: payload.email,
+      name: payload.name,
+      role: payload.role as Role,
+      tokenVersion: payload.tokenVersion,
+    };
   } catch {
     return null;
   }

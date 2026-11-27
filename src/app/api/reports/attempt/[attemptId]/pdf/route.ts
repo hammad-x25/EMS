@@ -1,6 +1,7 @@
 import { Role } from "@prisma/client";
 import { apiHandler } from "@/lib/api-handler";
 import { generateCandidateReportPdf } from "@/lib/pdf-reports";
+import { assertRateLimit } from "@/lib/rate-limit";
 import { requireAuth } from "@/lib/rbac";
 import { getResultDetail } from "@/lib/results";
 import { getOrCreateVerification } from "@/lib/verification";
@@ -11,6 +12,7 @@ export const runtime = "nodejs";
 
 export const GET = apiHandler<Context>(async (request, context) => {
   const actor = await requireAuth([Role.CANDIDATE, Role.EXAMINER, Role.ADMIN]);
+  assertRateLimit(`pdf:attempt:${actor.userId}`, { maxAttempts: 30, windowMs: 60_000 });
   const { attemptId } = await context.params;
   const result = await getResultDetail(actor, attemptId);
   const verification = await getOrCreateVerification(attemptId);

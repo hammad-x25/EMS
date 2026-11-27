@@ -12,4 +12,6 @@ test-results/
 .DS_Store
 .idea/
 .vscode/
+.agents/
+OWASP_SECURITY_REPORT.md
 

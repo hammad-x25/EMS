@@ -16,7 +16,10 @@ export const POST = apiHandler<Context>(async (request, context) => {
   const input = ResetPasswordSchema.parse(await request.json());
   const existing = await db.user.findUnique({ where: { id }, select: { id: true } });
   if (!existing) throw new NotFoundError("User not found");
-  await db.user.update({ where: { id }, data: { passwordHash: await hashPassword(input.password) } });
+  await db.user.update({
+    where: { id },
+    data: { passwordHash: await hashPassword(input.password), tokenVersion: { increment: 1 } },
+  });
   await writeAudit({ actorId: actor.userId, action: "PASSWORD_RESET", entityType: "User", entityId: id });
   return NextResponse.json({ ok: true });
 });

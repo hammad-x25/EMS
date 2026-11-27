@@ -62,6 +62,7 @@ model User {
   role         Role     @default(CANDIDATE)
   studentId    String?  @unique
   isActive     Boolean  @default(true)
+  tokenVersion Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

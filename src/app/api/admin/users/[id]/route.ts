@@ -20,6 +20,9 @@ export const PATCH = apiHandler<Context>(async (request, context) => {
     throw new ForbiddenError("You cannot deactivate or remove your own administrator role");
   }
 
+  const revokeExistingSessions =
+    input.isActive === false || (input.role !== undefined && input.role !== existing.role);
+
   const user = await db.user.update({
     where: { id },
     data: {
@@ -27,6 +30,7 @@ export const PATCH = apiHandler<Context>(async (request, context) => {
       role: input.role,
       studentId: input.studentId === undefined ? undefined : input.studentId || null,
       isActive: input.isActive,
+      ...(revokeExistingSessions ? { tokenVersion: { increment: 1 } } : {}),
     },
   });
   await writeAudit({

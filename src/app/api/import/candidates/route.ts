@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { Role } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -7,6 +8,7 @@ import { hashPassword } from "@/lib/auth";
 import { parseCandidateImport } from "@/lib/bulk-import";
 import { db } from "@/lib/db";
 import { ForbiddenError, NotFoundError, UnprocessableError } from "@/lib/errors";
+import { assertRateLimit } from "@/lib/rate-limit";
 import { requireAuth } from "@/lib/rbac";
 import { toUserDto } from "@/lib/user-dto";
 
@@ -17,10 +19,13 @@ const ImportCandidatesRequestSchema = z.object({
   enrollExamId: z.string().trim().min(1).optional().nullable(),
 });
 
-const DEFAULT_IMPORT_PASSWORD = "Candidate@123!";
+function generateTemporaryPassword(): string {
+  return `${randomBytes(12).toString("base64url")}Aa1!`;
+}
 
 export const POST = apiHandler(async (request) => {
   const actor = await requireAuth([Role.EXAMINER, Role.ADMIN]);
+  assertRateLimit(`import:candidates:${actor.userId}`, { maxAttempts: 20, windowMs: 60_000 });
   const input = ImportCandidatesRequestSchema.parse(await request.json());
 
   if (input.enrollExamId) {
@@ -92,14 +97,13 @@ export const POST = apiHandler(async (request) => {
     );
   }
 
-  const defaultPasswordHash = await hashPassword(DEFAULT_IMPORT_PASSWORD);
   const passwordHashes = new Map<string, string>();
+  const generatedTempPasswords = new Map<string, string>();
   for (const row of parsed.validRows) {
     if (!existingByEmail.has(row.email)) {
-      passwordHashes.set(
-        row.email,
-        row.password ? await hashPassword(row.password) : defaultPasswordHash,
-      );
+      const plainPassword = row.password ?? generateTemporaryPassword();
+      if (!row.password) generatedTempPasswords.set(row.email, plainPassword);
+      passwordHashes.set(row.email, await hashPassword(plainPassword));
     }
   }
 
@@ -122,7 +126,7 @@ export const POST = apiHandler(async (request) => {
           name: row.name,
           studentId: row.studentId,
           role: Role.CANDIDATE,
-          passwordHash: passwordHashes.get(row.email) ?? defaultPasswordHash,
+          passwordHash: passwordHashes.get(row.email) ?? (await hashPassword(generateTemporaryPassword())),
         },
       });
       createdUsers.push(created);
@@ -167,7 +171,9 @@ export const POST = apiHandler(async (request) => {
       createdCount: result.createdUsers.length,
       skippedExisting: result.skippedExisting,
       enrolledCount: result.enrolledCount,
-      defaultTemporaryPassword: DEFAULT_IMPORT_PASSWORD,
+      generatedTemporaryPasswords: Array.from(generatedTempPasswords.entries()).map(
+        ([email, temporaryPassword]) => ({ email, temporaryPassword }),
+      ),
       users: result.createdUsers,
     },
     { status: 201 },
