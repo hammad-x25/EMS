@@ -4,9 +4,12 @@ import { Difficulty, ExamStatus, MultiSelectScoring } from "@prisma/client";
 import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
 import {
+  Activity,
   ArrowLeft,
+  BarChart3,
   CheckCircle2,
   FileUp,
+  GraduationCap,
   Play,
   Plus,
   Scale,
@@ -391,6 +394,15 @@ export function ExamBuilderWorkspace({
           <ArrowLeft size={16} /> Back to examinations
         </Link>
         <div className="flex flex-wrap items-center gap-3">
+          <Link className="btn-secondary px-3 py-1.5 text-sm" href={`/examiner/exams/${exam.id}/monitor`}>
+            <Activity size={15} /> Monitor
+          </Link>
+          <Link className="btn-secondary px-3 py-1.5 text-sm" href={`/examiner/exams/${exam.id}/grading`}>
+            <GraduationCap size={15} /> Grade
+          </Link>
+          <Link className="btn-secondary px-3 py-1.5 text-sm" href={`/examiner/exams/${exam.id}/analytics`}>
+            <BarChart3 size={15} /> Analytics
+          </Link>
           {exam.status !== ExamStatus.COMPLETED ? (
             <Link className="btn-secondary px-3 py-1.5 text-sm" href={`/examiner/exams/${exam.id}/sandbox`}>
               <Play size={15} /> Preview in sandbox

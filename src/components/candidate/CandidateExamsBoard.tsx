@@ -173,9 +173,10 @@ export function CandidateExamsBoard({
                   Ended: {new Date(exam.scheduledEnd).toLocaleString()}
                 </p>
                 {exam.attempt?.resultsPublished && exam.attempt.totalScore !== null ? (
-                  <p className="text-sm font-bold text-emerald-700">
-                    Published score: {exam.attempt.totalScore} / {exam.attempt.maxScore}
-                  </p>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-bold text-emerald-700">Published score: {exam.attempt.totalScore} / {exam.attempt.maxScore}</p>
+                    <Link className="btn-primary px-3 py-1.5 text-xs" href={`/candidate/results/${exam.attempt.id}`}>View result</Link>
+                  </div>
                 ) : (
                   <p className="text-xs text-slate-500">
                     {exam.attempt
