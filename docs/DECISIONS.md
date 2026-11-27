@@ -33,3 +33,7 @@ This log records decisions approved by the team when the competition brief, mast
 15. **Authoritative answer cutoff:** The five-second in-flight grace in `AGENTS.md` Section 2.2.3 and the master specification is authoritative. An attempt remains `IN_PROGRESS` for answer synchronization through `effectiveDeadlineAt + 5000ms`, inclusive. Answer sync, heartbeat/get-attempt expiry, and submission must use this same cutoff; after it, the attempt is expired and no mutation is accepted.
 16. **Race-safe final submission:** Final submission may carry the candidate's pending monotonic answer mutations. The server applies those mutations and conditionally finalizes the attempt in one serializable transaction. Serialization failures are retried up to three times and then returned as an explicit retryable conflict rather than silently finalizing without the answer.
 
+## 2026-11-27 — Self-service password rotation
+
+19. **Self-service password change:** Authenticated active users (`ADMIN`, `EXAMINER`, `CANDIDATE`) may rotate their own password via `POST /api/auth/change-password` and the sidebar `Change password` dialog. The endpoint rate-limits attempts per user, verifies the current password, enforces `PasswordSchema` (12+ chars, mixed case, digit, symbol, distinct from current password), increments `tokenVersion` to invalidate prior sessions, issues a fresh cookie for the active session, and logs `PASSWORD_CHANGED` / `PASSWORD_CHANGE_FAILED` in `AuditLog`.
+

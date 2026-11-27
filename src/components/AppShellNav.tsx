@@ -5,6 +5,7 @@ import {
   Activity,
   BookOpenCheck,
   ClipboardList,
+  KeyRound,
   LayoutDashboard,
   Menu,
   MessageSquareWarning,
@@ -15,6 +16,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
+import { ChangePasswordModal } from "@/components/ChangePasswordModal";
 import { LogoutButton } from "@/components/LogoutButton";
 import { Drawer } from "@/components/ui/Drawer";
 import type { SessionUser } from "@/lib/auth";
@@ -63,11 +65,13 @@ function SidebarContent({
   items,
   pathname,
   onNavigate,
+  onChangePassword,
 }: {
   session: SessionUser;
   items: NavItem[];
   pathname: string;
   onNavigate?: () => void;
+  onChangePassword: () => void;
 }) {
   return (
     <div className="flex h-full flex-col">
@@ -102,7 +106,15 @@ function SidebarContent({
         })}
       </nav>
 
-      <div className="mt-6 border-t border-slate-800 pt-4">
+      <div className="mt-6 space-y-2 border-t border-slate-800 pt-4">
+        <button
+          className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm font-semibold text-slate-100 transition-colors hover:bg-slate-800"
+          onClick={onChangePassword}
+          type="button"
+        >
+          <KeyRound aria-hidden="true" size={16} />
+          <span>Change password</span>
+        </button>
         <LogoutButton />
       </div>
     </div>
@@ -120,6 +132,12 @@ export function AppShellNav({
 }) {
   const pathname = usePathname() ?? "";
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+
+  const openChangePassword = () => {
+    setMobileOpen(false);
+    setChangePasswordOpen(true);
+  };
 
   return (
     <div className="min-h-screen md:grid md:grid-cols-[248px_minmax(0,1fr)]">
@@ -158,7 +176,12 @@ export function AppShellNav({
           <ShieldCheck aria-hidden="true" className="text-indigo-400" size={21} />
           <span>AegisExam</span>
         </Link>
-        <SidebarContent items={items} pathname={pathname} session={session} />
+        <SidebarContent
+          items={items}
+          onChangePassword={openChangePassword}
+          pathname={pathname}
+          session={session}
+        />
       </aside>
 
       {/* Mobile drawer navigation */}
@@ -174,12 +197,18 @@ export function AppShellNav({
         <div className="-m-2 rounded-lg bg-slate-950 p-2 text-slate-100">
           <SidebarContent
             items={items}
+            onChangePassword={openChangePassword}
             onNavigate={() => setMobileOpen(false)}
             pathname={pathname}
             session={session}
           />
         </div>
       </Drawer>
+
+      <ChangePasswordModal
+        onClose={() => setChangePasswordOpen(false)}
+        open={changePasswordOpen}
+      />
 
       <main className="min-w-0 p-4 sm:p-6 md:p-8 lg:p-10" id="main-content">
         {children}

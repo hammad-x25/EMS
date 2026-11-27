@@ -5,6 +5,8 @@ test.describe("UI/UX accessibility, responsive layout, and high-stakes safeguard
     browser,
   }) => {
     // 1. Mobile 375x812 viewport: collapsible drawer & zero horizontal page overflow
+    test.setTimeout(90_000);
+    const pwCandidateEmail = `pw-rotate-${Date.now()}@aegisexam.local`;
     const mobileContext = await browser.newContext({ viewport: { width: 375, height: 812 } });
     const mobilePage = await mobileContext.newPage();
 
@@ -40,6 +42,17 @@ test.describe("UI/UX accessibility, responsive layout, and high-stakes safeguard
       const auditNav = await mobilePage.goto("/admin/audit");
       expect(auditNav?.status()).toBe(200);
       await expect(mobilePage.getByRole("heading", { name: /Platform audit trail/i })).toBeVisible();
+
+      // Create an isolated candidate for self-service password change E2E test
+      const createRes = await mobilePage.request.post("/api/admin/users", {
+        data: {
+          name: "Password Rotate Candidate",
+          email: pwCandidateEmail,
+          password: "TempPassword@123!",
+          role: "CANDIDATE",
+        },
+      });
+      expect(createRes.status()).toBe(201);
     } finally {
       await mobileContext.close();
     }
@@ -53,6 +66,18 @@ test.describe("UI/UX accessibility, responsive layout, and high-stakes safeguard
       await examinerPage.getByLabel("Password").fill("Examiner@123!");
       await examinerPage.getByRole("button", { name: "Sign in securely" }).click();
       await examinerPage.waitForURL("**/examiner");
+
+      // Examiner Change Password dialog rejects wrong current password cleanly
+      await examinerPage.getByRole("button", { name: "Change password" }).click();
+      const pwModal = examinerPage.getByRole("dialog", { name: "Change password" });
+      await expect(pwModal).toBeVisible();
+      await pwModal.getByLabel(/Current password/i).fill("WrongPass@123!");
+      await pwModal.getByLabel(/^New password/i).fill("RotatedPass@999!");
+      await pwModal.getByLabel(/Confirm new password/i).fill("RotatedPass@999!");
+      await pwModal.getByRole("button", { name: "Update password" }).click();
+      await expect(pwModal.getByRole("alert").first()).toContainText(/Current password is incorrect/i);
+      await examinerPage.keyboard.press("Escape");
+      await expect(pwModal).toHaveCount(0);
 
       await examinerPage.goto("/examiner/exams/seed-exam-ongoing/monitor");
       await expect(examinerPage.getByRole("navigation", { name: "Breadcrumb" })).toBeVisible();
@@ -104,6 +129,36 @@ test.describe("UI/UX accessibility, responsive layout, and high-stakes safeguard
       await examinerContext.setOffline(false);
     } finally {
       await examinerContext.close();
+    }
+
+    // 3. Candidate self-service password change and re-login verification
+    const candidateContext = await browser.newContext();
+    const candidatePage = await candidateContext.newPage();
+    try {
+      await candidatePage.goto("/login");
+      await candidatePage.getByLabel("Email address").fill(pwCandidateEmail);
+      await candidatePage.getByLabel("Password").fill("TempPassword@123!");
+      await candidatePage.getByRole("button", { name: "Sign in securely" }).click();
+      await candidatePage.waitForURL("**/candidate");
+
+      await candidatePage.getByRole("button", { name: "Change password" }).click();
+      const candPwDialog = candidatePage.getByRole("dialog", { name: "Change password" });
+      await candPwDialog.getByLabel(/Current password/i).fill("TempPassword@123!");
+      await candPwDialog.getByLabel(/^New password/i).fill("UpdatedStudent@789!");
+      await candPwDialog.getByLabel(/Confirm new password/i).fill("UpdatedStudent@789!");
+      await candPwDialog.getByRole("button", { name: "Update password" }).click();
+      await expect(candPwDialog.getByRole("status")).toContainText(/Password updated/i);
+      await candPwDialog.getByRole("button", { name: "Close", exact: true }).click();
+
+      // Sign out and verify new password succeeds
+      await candidatePage.getByRole("button", { name: "Sign out" }).click();
+      await candidatePage.waitForURL("**/login");
+      await candidatePage.getByLabel("Email address").fill(pwCandidateEmail);
+      await candidatePage.getByLabel("Password").fill("UpdatedStudent@789!");
+      await candidatePage.getByRole("button", { name: "Sign in securely" }).click();
+      await candidatePage.waitForURL("**/candidate");
+    } finally {
+      await candidateContext.close();
     }
   });
 });

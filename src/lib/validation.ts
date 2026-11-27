@@ -33,3 +33,15 @@ export const UpdateUserSchema = z
   .refine((value) => Object.keys(value).length > 0, "At least one field is required");
 
 export const ResetPasswordSchema = z.object({ password: PasswordSchema });
+
+export const ChangePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Current password is required").max(128),
+    newPassword: PasswordSchema,
+  })
+  .refine((value) => value.newPassword !== value.currentPassword, {
+    path: ["newPassword"],
+    message: "New password must be different from your current password",
+  });
+
+export type ChangePasswordInput = z.infer<typeof ChangePasswordSchema>;
