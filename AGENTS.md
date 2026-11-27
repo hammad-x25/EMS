@@ -61,9 +61,32 @@ Every AI agent and human contributor **MUST** follow the specifications in `docs
 
 ---
 
-## 3. Mandatory Verification Gates
+## 3. Mandatory Verification & Migration Gates
 
-Before committing a completed feature or finishing any Plan, run **all** relevant checks and ensure zero errors:
+### 3.1 Database Schema & Migration Rule
+Whenever `prisma/schema.prisma` is modified, a migration is created, or migration/schema updates are pulled from Git, **immediately apply and verify the database update** before continuing work or committing:
+
+```bash
+# 1. Validate schema syntax
+npx prisma validate
+
+# 2. Apply migrations / sync schema to PostgreSQL
+#    - If prisma/migrations/ exists or creating a new migration:
+npx prisma migrate dev --name <descriptive_migration_name>   # (dev)
+npx prisma migrate deploy                                   # (CI / production)
+#    - If syncing schema without a migration history folder:
+npx prisma db push
+
+# 3. Regenerate Prisma Client and verify seed compatibility
+npx prisma generate
+npx prisma db seed
+```
+
+- Never leave unapplied `prisma/schema.prisma` or `prisma/migrations/` changes pending while writing application code.
+- Commit schema and migration files (`prisma/schema.prisma`, `prisma/migrations/**`) only after verifying the migration and `npx prisma generate` succeed cleanly.
+
+### 3.2 Code & Build Verification
+Before committing a small task, run targeted static checks (`npm run typecheck`, `npm run lint`, and relevant `npx vitest run <test-file>`). Before finishing or merging any Plan, run **all** checks and ensure zero errors:
 
 ```bash
 # 1. Regenerate Prisma client & check schema sync
@@ -121,13 +144,22 @@ Use the following branch names:
 - `feat/plan-04-monitoring-grading-reports`
 - `feat/plan-05-disputes-polish-deploy`
 
-### 4.3 Daily Development & Atomic Commits
+### 4.3 Daily Development & Small-Task Atomic Commits
+**Commit on every small, self-contained task**—do NOT accumulate an entire plan or multiple unrelated features into one large commit. Make an atomic commit as soon as a discrete unit is complete and verified, such as:
+- Adding or updating dependencies/tooling (`chore(plan-x): ...`)
+- Applying a Prisma schema change + migration (`feat(db): ...` / `chore(db): ...`)
+- Implementing a single domain module + its unit tests (`feat(plan-x): ...`)
+- Adding one cohesive API endpoint group (`feat(plan-x): ...`)
+- Building one UI view or component (`feat(plan-x): ...`)
+- Fixing a single bug (`fix(plan-x): ...`)
+- Updating seed data or documentation/handoffs (`docs(plan-x): ...`)
+
 Use **Conventional Commits** scoped to the module/plan:
 - `feat(plan-1): ...` — new functionality
 - `fix(plan-3): ...` — bug fix
 - `test(plan-2): ...` — unit/integration/E2E tests
-- `docs(spec): ...` — spec or README updates
-- `chore(infra): ...` — Docker, lint, dependencies
+- `docs(spec): ...` — spec, `AGENTS.md`, or README updates
+- `chore(infra): ...` — Docker, lint, dependencies, migrations
 
 ```bash
 # Inspect changes before staging
