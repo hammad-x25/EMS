@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+  --background: #f5f7fb;
+  --surface: #ffffff;
+  --ink: #0f172a;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --primary: #4f46e5;
+  --primary-dark: #3730a3;
+}
+
+* { box-sizing: border-box; }
+html { background: var(--background); }
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--ink);
+  font-family: Arial, Helvetica, sans-serif;
+  text-rendering: optimizeLegibility;
+}
+button, input, select { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: 0.6; }
+a { color: inherit; text-decoration: none; }
+:focus-visible { outline: 3px solid #a5b4fc; outline-offset: 2px; }
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
+}
+.field {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+  padding: 0.7rem 0.8rem;
+  color: var(--ink);
+}
+.field:focus { border-color: #6366f1; outline: 3px solid #e0e7ff; }
+.btn-primary, .btn-secondary, .btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border-radius: 10px;
+  padding: 0.7rem 1rem;
+  font-weight: 700;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+.btn-primary { border: 1px solid var(--primary); background: var(--primary); color: white; }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-secondary { border: 1px solid #cbd5e1; background: white; color: #334155; }
+.btn-secondary:hover { background: #f8fafc; border-color: #94a3b8; }
+.btn-danger { border: 1px solid #fecaca; background: #fff1f2; color: #be123c; }
+.btn-danger:hover { background: #ffe4e6; }
+.eyebrow { color: #4f46e5; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; }
+.muted { color: var(--muted); }
+.status-pill { display: inline-flex; align-items: center; gap: 0.3rem; border-radius: 999px; padding: 0.25rem 0.55rem; font-size: 0.75rem; font-weight: 700; }
+.status-active { background: #ecfdf5; color: #047857; }
+.status-inactive { background: #fff1f2; color: #be123c; }
+
+@media (max-width: 800px) {
+  .desktop-table { display: block; overflow-x: auto; }
+}
