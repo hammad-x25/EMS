@@ -22,3 +22,9 @@ This log records decisions approved by the team when the competition brief, mast
 13. **Session revocation and cookie policy:** Superseding Decision 5's `sameSite=lax`, session cookies use `httpOnly`, `sameSite=strict`, and `secure=true` in production. `User.tokenVersion` provides server-side JWT revocation on logout, password reset, role change, and account deactivation.
 14. **Password policy:** Newly created, imported, or reset user passwords require at least 12 characters with mixed case, digit, and symbol, hashed with `bcryptjs` cost 12 (existing cost-10 seed hashes remain verifiable via `bcryptjs.compare`).
 
+## 2026-11-27 — Plan 6 UI/UX redesign sign-off
+
+15. **Backward-compatible GET pagination:** Read-only collection endpoints (`GET /api/admin/users`, `GET /api/questions`, `GET /api/admin/audit`) accept optional `?page=&limit=&search=` (plus role/status/topic/difficulty/type/action) query parameters and return pagination metadata (`pagination: { page, limit, total, totalPages }`) when requested, while preserving existing unparameterized responses.
+16. **Zero-network typography stack:** Use a zero-network CSS font stack (`Inter, "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif` with monospace `tabular-nums` for timers, scores, and verification codes) so `docker build` and offline runs never fetch external fonts.
+17. **Hide-timer deadline milestone cues:** When `hideTimer` is active, keep the continuous countdown clock hidden while emitting non-intrusive `aria-live="polite"` screen-reader announcements and a subtle dismissible banner cue at the 5-minute and 1-minute remaining thresholds.
+
