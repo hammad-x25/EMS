@@ -390,7 +390,12 @@ export function ExamBuilderWorkspace({
         <Link className="btn-secondary px-3 py-1.5 text-sm" href="/examiner/exams">
           <ArrowLeft size={16} /> Back to examinations
         </Link>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {exam.status !== ExamStatus.COMPLETED ? (
+            <Link className="btn-secondary px-3 py-1.5 text-sm" href={`/examiner/exams/${exam.id}/sandbox`}>
+              <Play size={15} /> Preview in sandbox
+            </Link>
+          ) : null}
           <span className="status-pill bg-indigo-50 text-indigo-700">{exam.status}</span>
           <span className="text-xs font-semibold text-slate-500">
             Total marks: {exam.totalMarks} · Duration: {exam.durationMinutes} min

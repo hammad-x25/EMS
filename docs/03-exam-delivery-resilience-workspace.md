@@ -21,7 +21,7 @@ Build the distraction-free **Examination Workspace** (3.5), backed by **Server-A
 - Returns sanitized payload: **excludes `correctIdsSnap` and `explanation`**, includes `serverNow` for client clock-skew calculation.
 
 #### [NEW] `src/app/api/attempts/[id]/route.ts` & `src/app/api/attempts/[id]/submit/route.ts`
-- `GET /api/attempts/[id]`: returns current attempt state, snapshots, saved answers, `serverNow`, `hardDeadlineAt`, and active announcements. Auto-transitions to `EXPIRED` if `now > hardDeadlineAt`.
+- `GET /api/attempts/[id]`: returns current attempt state, snapshots, saved answers, `serverNow`, `hardDeadlineAt`, `effectiveDeadlineAt`, and active announcements. Auto-transitions to `EXPIRED` if `now > effectiveDeadlineAt`.
 - `POST /api/attempts/[id]/submit`: transactional finalization (`WHERE status = 'IN_PROGRESS'`) and duplicate-submission prevention. Plan 4 grades finalized attempts and owns grading-state transitions.
 
 ---

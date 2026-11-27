@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CalendarClock, CheckCircle2, Clock, FileText, Lock, PlayCircle, RefreshCw, X } from "lucide-react";
+import Link from "next/link";
 import type { CandidateExamCardDto } from "@/app/api/candidate/exams/route";
 
 export function CandidateExamsBoard({
@@ -240,15 +241,20 @@ export function CandidateExamsBoard({
                 </dd>
               </div>
             </dl>
-            <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-xs text-slate-600">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3 text-xs text-slate-600">
               <span>
                 {activeExam.accessState === "UPCOMING"
                   ? "Entry is locked on the backend until the scheduled start window opens."
-                  : "Eligibility verified. Interactive delivery workspace launches in Plan 3."}
+                  : "Eligibility verified. The server timer starts only after you enter the workspace."}
               </span>
-              <button className="btn-secondary" onClick={() => setActiveExam(null)} type="button">
-                Close
-              </button>
+              <div className="flex gap-2">
+                <button className="btn-secondary" onClick={() => setActiveExam(null)} type="button">Close</button>
+                {activeExam.accessState === "AVAILABLE" || activeExam.accessState === "RESUME" ? (
+                  <Link className="btn-primary" href={`/candidate/exams/${activeExam.examId}/take`}>
+                    <PlayCircle size={16} /> {activeExam.accessState === "RESUME" ? "Resume attempt" : "Start examination"}
+                  </Link>
+                ) : null}
+              </div>
             </div>
           </div>
         </div>
