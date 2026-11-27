@@ -1,4 +1,12 @@
-import { Difficulty, Prisma, PrismaClient, QuestionType, Role } from "@prisma/client";
+import {
+  Difficulty,
+  ExamStatus,
+  MultiSelectScoring,
+  Prisma,
+  PrismaClient,
+  QuestionType,
+  Role,
+} from "@prisma/client";
 import { hash } from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -85,6 +93,172 @@ async function main() {
   }
 
   console.info(`Seeded 8 users and ${questions.length} reusable questions.`);
+
+  // Plan 2 sample examination, blueprint, and enrollment fixtures (idempotent)
+  const now = new Date();
+  const hours = (n: number) => new Date(now.getTime() + n * 3_600_000);
+
+  const ongoingExam = await prisma.exam.upsert({
+    where: { id: "seed-exam-ongoing" },
+    update: {
+      title: "CS-301 Live Stratified Assessment",
+      status: ExamStatus.ONGOING,
+      scheduledStart: hours(-1),
+      scheduledEnd: hours(6),
+      durationMinutes: 45,
+      totalMarks: 18,
+      passingMarks: 9,
+      shuffleQuestions: true,
+      shuffleOptions: true,
+      useStratifiedBlueprint: true,
+      multiSelectRule: MultiSelectScoring.PARTIAL_NO_NEGATIVE,
+      negativeMarkRatio: 0,
+      createdById: examiner.id,
+    },
+    create: {
+      id: "seed-exam-ongoing",
+      title: "CS-301 Live Stratified Assessment",
+      instructions:
+        "Answer all sections carefully. Each candidate receives a stratified difficulty-balanced paper.",
+      status: ExamStatus.ONGOING,
+      scheduledStart: hours(-1),
+      scheduledEnd: hours(6),
+      durationMinutes: 45,
+      totalMarks: 18,
+      passingMarks: 9,
+      shuffleQuestions: true,
+      shuffleOptions: true,
+      useStratifiedBlueprint: true,
+      multiSelectRule: MultiSelectScoring.PARTIAL_NO_NEGATIVE,
+      negativeMarkRatio: 0,
+      createdById: examiner.id,
+    },
+  });
+
+  const blueprintSeed = [
+    { topic: "Algorithms", difficulty: Difficulty.EASY, pickCount: 1, marksEach: 2 },
+    { topic: "Algorithms", difficulty: Difficulty.HARD, pickCount: 1, marksEach: 4 },
+    { topic: "Databases", difficulty: Difficulty.MEDIUM, pickCount: 1, marksEach: 3 },
+    { topic: "Databases", difficulty: Difficulty.HARD, pickCount: 1, marksEach: 3 },
+    { topic: "Networks", difficulty: Difficulty.EASY, pickCount: 1, marksEach: 2 },
+    { topic: "Networks", difficulty: Difficulty.MEDIUM, pickCount: 1, marksEach: 4 },
+  ];
+
+  for (const rule of blueprintSeed) {
+    await prisma.examBlueprintRule.upsert({
+      where: {
+        examId_topic_difficulty: {
+          examId: ongoingExam.id,
+          topic: rule.topic,
+          difficulty: rule.difficulty,
+        },
+      },
+      update: { pickCount: rule.pickCount, marksEach: rule.marksEach },
+      create: { examId: ongoingExam.id, ...rule },
+    });
+  }
+
+  const upcomingExam = await prisma.exam.upsert({
+    where: { id: "seed-exam-upcoming" },
+    update: {
+      title: "SE-402 Scheduled Final Examination",
+      status: ExamStatus.PUBLISHED,
+      scheduledStart: hours(48),
+      scheduledEnd: hours(52),
+      durationMinutes: 90,
+      totalMarks: 12,
+      passingMarks: 6,
+      useStratifiedBlueprint: false,
+      createdById: examiner.id,
+    },
+    create: {
+      id: "seed-exam-upcoming",
+      title: "SE-402 Scheduled Final Examination",
+      instructions:
+        "Scheduled comprehensive examination covering algorithms and database internals.",
+      status: ExamStatus.PUBLISHED,
+      scheduledStart: hours(48),
+      scheduledEnd: hours(52),
+      durationMinutes: 90,
+      totalMarks: 12,
+      passingMarks: 6,
+      useStratifiedBlueprint: false,
+      createdById: examiner.id,
+    },
+  });
+
+  const upcomingAssignments = [
+    { questionId: "seed-question-01", orderIndex: 0, marks: 2 },
+    { questionId: "seed-question-02", orderIndex: 1, marks: 3 },
+    { questionId: "seed-question-09", orderIndex: 2, marks: 2 },
+    { questionId: "seed-question-14", orderIndex: 3, marks: 5 },
+  ];
+  for (const item of upcomingAssignments) {
+    await prisma.examQuestion.upsert({
+      where: { examId_questionId: { examId: upcomingExam.id, questionId: item.questionId } },
+      update: { orderIndex: item.orderIndex, marks: item.marks },
+      create: { examId: upcomingExam.id, ...item },
+    });
+  }
+
+  const draftExam = await prisma.exam.upsert({
+    where: { id: "seed-exam-draft" },
+    update: {
+      title: "NET-204 Draft Practice Quiz",
+      status: ExamStatus.DRAFT,
+      scheduledStart: hours(24),
+      scheduledEnd: hours(26),
+      durationMinutes: 30,
+      totalMarks: 10,
+      passingMarks: 5,
+      useStratifiedBlueprint: false,
+      createdById: examiner.id,
+    },
+    create: {
+      id: "seed-exam-draft",
+      title: "NET-204 Draft Practice Quiz",
+      instructions: "Draft networking quiz pending examiner review.",
+      status: ExamStatus.DRAFT,
+      scheduledStart: hours(24),
+      scheduledEnd: hours(26),
+      durationMinutes: 30,
+      totalMarks: 10,
+      passingMarks: 5,
+      useStratifiedBlueprint: false,
+      createdById: examiner.id,
+    },
+  });
+
+  const draftAssignments = [
+    { questionId: "seed-question-17", orderIndex: 0, marks: 2 },
+    { questionId: "seed-question-18", orderIndex: 1, marks: 3 },
+    { questionId: "seed-question-22", orderIndex: 2, marks: 5 },
+  ];
+  for (const item of draftAssignments) {
+    await prisma.examQuestion.upsert({
+      where: { examId_questionId: { examId: draftExam.id, questionId: item.questionId } },
+      update: { orderIndex: item.orderIndex, marks: item.marks },
+      create: { examId: draftExam.id, ...item },
+    });
+  }
+
+  for (let index = 1; index <= 5; index += 1) {
+    const candidateId = `seed-candidate-${index}`;
+    await prisma.enrollment.upsert({
+      where: { examId_userId: { examId: ongoingExam.id, userId: candidateId } },
+      update: {},
+      create: { examId: ongoingExam.id, userId: candidateId },
+    });
+    if (index <= 3) {
+      await prisma.enrollment.upsert({
+        where: { examId_userId: { examId: upcomingExam.id, userId: candidateId } },
+        update: {},
+        create: { examId: upcomingExam.id, userId: candidateId },
+      });
+    }
+  }
+
+  console.info("Seeded 3 Plan 2 examinations, blueprint rules, and candidate enrollments.");
 }
 
 main()
