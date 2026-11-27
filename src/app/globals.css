@@ -63,6 +63,40 @@ a { color: inherit; text-decoration: none; }
 .status-active { background: #ecfdf5; color: #047857; }
 .status-inactive { background: #fff1f2; color: #be123c; }
 
+.exam-theme-dark {
+  background: #0f172a;
+  color: #f8fafc;
+}
+.exam-theme-dark .card,
+.exam-theme-dark header,
+.exam-theme-dark section,
+.exam-theme-dark aside {
+  border-color: #475569;
+  background-color: #1e293b;
+  color: #f8fafc;
+}
+.exam-theme-dark [class*="text-slate-"] { color: #cbd5e1 !important; }
+.exam-theme-dark [class*="border-slate-"] { border-color: #64748b !important; }
+.exam-theme-dark .field { border-color: #64748b; background: #0f172a; color: #f8fafc; }
+
+.exam-theme-contrast {
+  background: #000;
+  color: #fff;
+}
+.exam-theme-contrast .card,
+.exam-theme-contrast header,
+.exam-theme-contrast section,
+.exam-theme-contrast aside {
+  border: 3px solid #fff;
+  background-color: #000;
+  color: #fff;
+  box-shadow: none;
+}
+.exam-theme-contrast [class*="text-slate-"] { color: #fff !important; }
+.exam-theme-contrast [class*="border-slate-"] { border-color: #fff !important; }
+.exam-theme-contrast .field { border: 3px solid #fff; background: #000; color: #fff; }
+.exam-theme-contrast :focus-visible { outline-color: #ff0; }
+
 @media (max-width: 800px) {
   .desktop-table { display: block; overflow-x: auto; }
 }
