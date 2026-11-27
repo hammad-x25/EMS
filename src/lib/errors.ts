@@ -33,3 +33,15 @@ export class ConflictError extends AppError {
     super(message, 409, code);
   }
 }
+
+export class BadRequestError extends AppError {
+  constructor(message: string, code = "BAD_REQUEST", details?: unknown) {
+    super(message, 400, code, details);
+  }
+}
+
+export class UnprocessableError extends AppError {
+  constructor(message: string, code = "UNPROCESSABLE_ENTITY", details?: unknown) {
+    super(message, 422, code, details);
+  }
+}
