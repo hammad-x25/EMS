@@ -1,5 +1,30 @@
 # Work Done
 
+## Plan 6 — Enterprise UI/UX Audit, Design System Modernization, Accessibility & Scale
+
+**Status:** Complete and verified on `feat/ui-ux-redesign`  
+**Date:** 2026-11-27
+
+### Implementation commits
+
+- `9d587d3` — UI/UX audit & 5-phase improvement plan ([06-ui-ux-audit-and-improvement-plan.md](./06-ui-ux-audit-and-improvement-plan.md)), approved boundary decisions ([DECISIONS.md](./DECISIONS.md) #15–17), and `AGENTS.md` UI/UX standards
+- `78feb22` — Semantic CSS design tokens, Light/Dark/High-Contrast CSS custom properties, zero-network enterprise typography, shared accessible `src/components/ui/*` primitives, structured Zod error parser (`src/lib/form-errors.ts`), and landing/login refinements
+- `49ff328` — Mobile `AppShellNav` drawer + `aria-current="page"`, shared `pagination.ts`, backward-compatible `?page=&limit=&search=` pagination on `/api/admin/users`, `/api/admin/audit`, and `/api/questions`, paginated `AdminUserManager` & `AuditTrailViewer`, and confirmation dialogs for user deactivation/role changes
+- `5222032` — Paginated `QuestionBankManager`, accessible `<Modal>` `BulkImportModal`, and `ExamListManager` search/filter + delete confirmation
+- `5464681` — Modularized `ExamBuilderWorkspace` (`src/components/examiner/builder/*`) with `role="tablist"` tabs & unsaved-edit confirmation, `<Breadcrumb>` wayfinding across Monitor/Grading/Analytics, `<Drawer>` outage explanation, and `DisputeWorkbench` field validation
+- `db21338` — Decoupled `ExamWorkspace` heartbeat/reconnect timer refs (`C-01`), debounced written-answer sync with guaranteed navigation/blur/submit flush (`C-02`), inline `ReviewSubmitModal` errors + detailed finalization receipt (`C-03`), guarded `N`/`P`/`M` shortcuts (`H-03`), `aria-live` announcements & `5m`/`1m` deadline milestone cues (`H-04`), pre-start readiness confirmation (`H-05`), and public verify code lookup (`L-02`)
+- `19c1bc1` — Single-DOM responsive CSS tables (zero duplicated interactive nodes), `FormField` `htmlFor` semantic password toggle binding, sandbox reset recovery button on finalized error view, and Playwright UI/UX accessibility & regression suite (`e2e/ui-ux-accessibility.spec.ts`)
+
+### Completed requirements
+
+- Comprehensive 12-dimension UI/UX audit and approved phased improvement plan documented in [06-ui-ux-audit-and-improvement-plan.md](./06-ui-ux-audit-and-improvement-plan.md).
+- Zero backend RBAC, Prisma schema, timing/deadline, sandbox-isolation, or answer-key leakage invariants altered; read-only GET pagination is backward-compatible when parameters are omitted.
+- Full-stack verification: `npm run typecheck`, `npm run lint` (0 warnings), `npx vitest run` (15 files, 50/50 tests passing), `npm run build` (standalone Next.js build cleanly compiling 18 static + all dynamic routes), and `npx playwright test` (2/2 suites passing across desktop and 375x812 mobile viewports).
+
+See [handoffs/06-ui-ux-redesign.md](./handoffs/06-ui-ux-redesign.md) for detailed component inventory, approved decisions, test outcomes, known limitations, and follow-up items.
+
+---
+
 ## Plan 5 — Trust & Dispute Resolution, Polish, Verification & Deployment
 
 **Status:** Complete and verified on `feat/plan-05-disputes-polish-deploy`  
