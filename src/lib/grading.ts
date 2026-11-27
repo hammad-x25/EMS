@@ -118,17 +118,23 @@ export async function recomputeAttemptTotals(attemptId: string): Promise<{
 
   const scored = await db.attempt.findUniqueOrThrow({
     where: { id: attemptId },
-    include: { snapshots: { include: { answer: true } } },
+    include: {
+      snapshots: { include: { answer: true } },
+      disputes: {
+        where: { status: "RESOLVED_ADJUSTED", snapshotId: null, scoreDelta: { not: null } },
+        select: { scoreDelta: true },
+      },
+    },
   });
   const allWrittenGraded = scored.snapshots
     .filter((snapshot) => snapshot.type === QuestionType.WRITTEN)
     .every((snapshot) => snapshot.answer?.manualScore !== null && snapshot.answer?.manualScore !== undefined);
-  const totalScore = rounded(
-    scored.snapshots.reduce(
-      (sum, snapshot) => sum + (snapshot.answer?.autoScore ?? 0) + (snapshot.answer?.manualScore ?? 0),
-      0,
-    ),
+  const snapshotSum = scored.snapshots.reduce(
+    (sum, snapshot) => sum + (snapshot.answer?.autoScore ?? 0) + (snapshot.answer?.manualScore ?? 0),
+    0,
   );
+  const attemptLevelDelta = scored.disputes.reduce((sum, dispute) => sum + (dispute.scoreDelta ?? 0), 0);
+  const totalScore = rounded(Math.max(0, Math.min(scored.maxScore, snapshotSum + attemptLevelDelta)));
   const canFinalize =
     scored.status !== AttemptStatus.IN_PROGRESS && scored.status !== AttemptStatus.PUBLISHED;
   const status = canFinalize && allWrittenGraded ? AttemptStatus.GRADED : scored.status;
