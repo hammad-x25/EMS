@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { apiHandler } from "@/lib/api-handler";
 import { writeAudit } from "@/lib/audit";
 import { db } from "@/lib/db";
+import { buildPaginationMeta, parsePagination } from "@/lib/pagination";
 import {
   CreateQuestionSchema,
   toQuestionDto,
@@ -17,7 +18,8 @@ export const GET = apiHandler(async (request) => {
   const topic = params.get("topic")?.trim();
   const difficultyParam = params.get("difficulty");
   const typeParam = params.get("type");
-  const query = params.get("q")?.trim();
+  const query = (params.get("search") ?? params.get("q"))?.trim();
+  const pagination = parsePagination(params, { defaultLimit: 20, maxLimit: 100 });
 
   const difficulty = Object.values(Difficulty).includes(difficultyParam as Difficulty)
     ? (difficultyParam as Difficulty)
@@ -26,8 +28,10 @@ export const GET = apiHandler(async (request) => {
     ? (typeParam as QuestionType)
     : undefined;
 
+  const ownerScope = actor.role === Role.ADMIN ? undefined : actor.userId;
+
   const where: Prisma.QuestionWhereInput = {
-    createdById: actor.role === Role.ADMIN ? undefined : actor.userId,
+    createdById: ownerScope,
     topic: topic && topic !== "ALL" ? topic : undefined,
     difficulty,
     type,
@@ -38,6 +42,31 @@ export const GET = apiHandler(async (request) => {
         ]
       : undefined,
   };
+
+  if (pagination.enabled) {
+    const [total, questions, distinctTopics] = await db.$transaction([
+      db.question.count({ where }),
+      db.question.findMany({
+        where,
+        orderBy: [{ updatedAt: "desc" }, { topic: "asc" }],
+        skip: pagination.skip,
+        take: pagination.limit,
+        include: { _count: { select: { examQuestions: true } } },
+      }),
+      db.question.findMany({
+        where: { createdById: ownerScope },
+        distinct: ["topic"],
+        select: { topic: true },
+        orderBy: { topic: "asc" },
+      }),
+    ]);
+
+    return NextResponse.json({
+      questions: questions.map(toQuestionDto),
+      topics: distinctTopics.map((item) => item.topic),
+      pagination: buildPaginationMeta(pagination.page, pagination.limit, total),
+    });
+  }
 
   const questions = await db.question.findMany({
     where,
