@@ -1,5 +1,43 @@
 # Work Done
 
+## Plan 3 — Exam Delivery, Failure Resilience, Workspace & Sandbox
+
+**Status:** Complete and verified on `feat/plan-03-exam-delivery-resilience`
+**Date:** 2026-11-27
+
+### Implementation commits
+
+- `4159e05` — align the specification with the approved immutable/effective deadline rule
+- `f91df75` — add the pinned `idb` IndexedDB dependency
+- `787ba8e` — attempt initialization, immutable snapshots, timing, sync, heartbeat, events, submit, and sandbox domain service
+- `17ecc30` — candidate/examiner attempt APIs and persistent workspace-preference API
+- `785557c` — shared offline-resilient Candidate Workspace, scratchpad, preferences, and Examiner Sandbox UI
+- `0ee221b` — enforce one attempt per exam/user/mode and serializable answer synchronization
+- `5b5132c` — Plan 3 resilience test command and sandbox local-data reset coverage
+- `10baba7` — update the pinned Vitest patch release
+
+### Completed requirements
+
+- PDF 3.5: candidate start/resume, server-synchronized countdown, immutable sanitized paper snapshots, MCQ/multi-select/written responses, accessible icon-and-color palette, keyboard navigation, mark-for-review, announcements, review summary, and idempotent final submission.
+- PDF 4.1 + Innovation 5.3: IndexedDB last-write queue, monotonic `clientSeq`, ordered batch sync, 5-second reconnect probe, exponential retry, exact queued count, 10-second heartbeat, 5-second deadline grace, stale-write rejection, and audited reconnect/browser signals.
+- PDF 4.3: examiner-owned sandbox using the exact Candidate Workspace, prominent preview banner, reset control, and `isSandbox: false` real-attempt counts.
+- PDF 4.7: persisted font size, light/dark/high-contrast theme, palette side, compact mode, and timer visibility with localStorage fallback.
+- PDF 4.8: per-attempt IndexedDB scratchpad with freehand pen/eraser/undo/clear and persistent quick notes.
+- Database invariant: unique `(examId, userId, isSandbox)` attempts and serializable sync transactions.
+
+### Verification summary
+
+- `npm run db:generate`, `npx prisma db push --accept-data-loss`, and `npm run db:seed`: passed against Docker PostgreSQL; 8 users, 24 questions, and 3 Plan 2 exams refreshed.
+- TypeScript and ESLint: passed with 0 errors/warnings.
+- Vitest: 7 files, 24/24 tests passed; focused `attempts-sync` suite 4/4 passed.
+- Next.js production build: passed; Candidate take and Examiner sandbox pages plus all attempt/preference APIs compiled.
+- Live API workflow: start/resume returned one attempt; answer keys were absent; sequence 10 persisted while sequence 9 was ignored; late sync returned `409` and `EXPIRED`; duplicate submit returned `SUBMITTED/SUBMITTED`; preferences persisted; sandbox counts remained `0/0/0` before/during/after reset.
+- `npm audit --omit=dev`: 2 advisories remain in Next.js's bundled PostCSS; npm's offered fix is the breaking Next 16 upgrade and is deferred to Plan 5.
+
+See [handoffs/03-exam-delivery-resilience-workspace.md](./handoffs/03-exam-delivery-resilience-workspace.md) for API/schema contracts, exact verification evidence, known issues, and the Plan 4 continuation step.
+
+---
+
 ## Plan 2 — Question Bank, Bulk Import, Exam Lifecycle & Fairness Engine
 
 **Status:** Complete and verified on `feat/plan-02-question-bank-fairness`  
