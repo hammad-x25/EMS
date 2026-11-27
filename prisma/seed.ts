@@ -259,6 +259,158 @@ async function main() {
   }
 
   console.info("Seeded 3 Plan 2 examinations, blueprint rules, and candidate enrollments.");
+
+  // Plan 4 published-result fixture with objective, multi-select, and written grading.
+  const resultsExam = await prisma.exam.upsert({
+    where: { id: "seed-exam-results" },
+    update: {
+      title: "CS-210 Published Midterm Results",
+      instructions: "Published demonstration result set for grading, analytics, and reports.",
+      status: ExamStatus.COMPLETED,
+      scheduledStart: hours(-72),
+      scheduledEnd: hours(-70),
+      durationMinutes: 60,
+      totalMarks: 10,
+      passingMarks: 5,
+      useStratifiedBlueprint: false,
+      multiSelectRule: MultiSelectScoring.PARTIAL_NO_NEGATIVE,
+      negativeMarkRatio: 0,
+      revealAnswersAfterPublish: true,
+      resultsPublishedAt: now,
+      createdById: examiner.id,
+    },
+    create: {
+      id: "seed-exam-results",
+      title: "CS-210 Published Midterm Results",
+      instructions: "Published demonstration result set for grading, analytics, and reports.",
+      status: ExamStatus.COMPLETED,
+      scheduledStart: hours(-72),
+      scheduledEnd: hours(-70),
+      durationMinutes: 60,
+      totalMarks: 10,
+      passingMarks: 5,
+      useStratifiedBlueprint: false,
+      multiSelectRule: MultiSelectScoring.PARTIAL_NO_NEGATIVE,
+      negativeMarkRatio: 0,
+      revealAnswersAfterPublish: true,
+      resultsPublishedAt: now,
+      createdById: examiner.id,
+    },
+  });
+
+  const resultQuestions = [
+    { questionId: "seed-question-01", marks: 2 },
+    { questionId: "seed-question-02", marks: 3 },
+    { questionId: "seed-question-03", marks: 5 },
+  ];
+  for (const [orderIndex, item] of resultQuestions.entries()) {
+    await prisma.examQuestion.upsert({
+      where: { examId_questionId: { examId: resultsExam.id, questionId: item.questionId } },
+      update: { orderIndex, marks: item.marks },
+      create: { examId: resultsExam.id, questionId: item.questionId, orderIndex, marks: item.marks },
+    });
+  }
+
+  const resultRows = [
+    { candidateId: "seed-candidate-1", single: ["b"], multi: ["a", "b"], auto: [2, 3], written: "A stack is LIFO like a pile of plates; a queue is FIFO like a service line.", manual: 4, total: 9 },
+    { candidateId: "seed-candidate-2", single: ["a"], multi: ["a"], auto: [0, 1.5], written: "Stacks remove the newest item while queues remove the oldest item.", manual: 3, total: 4.5 },
+    { candidateId: "seed-candidate-3", single: ["b"], multi: [], auto: [2, 0], written: "Stack: browser back history. Queue: print jobs waiting in order.", manual: 5, total: 7 },
+  ];
+
+  for (const [candidateIndex, row] of resultRows.entries()) {
+    await prisma.enrollment.upsert({
+      where: { examId_userId: { examId: resultsExam.id, userId: row.candidateId } },
+      update: {},
+      create: { examId: resultsExam.id, userId: row.candidateId },
+    });
+    const attemptId = `seed-result-attempt-${candidateIndex + 1}`;
+    const attempt = await prisma.attempt.upsert({
+      where: { examId_userId_isSandbox: { examId: resultsExam.id, userId: row.candidateId, isSandbox: false } },
+      update: {
+        status: "PUBLISHED",
+        seed: `seed-result-${candidateIndex + 1}`,
+        startedAt: hours(-72),
+        hardDeadlineAt: hours(-71),
+        submittedAt: hours(-71),
+        lastHeartbeatAt: hours(-71),
+        totalScore: row.total,
+        maxScore: 10,
+        lastClientSeq: 3,
+      },
+      create: {
+        id: attemptId,
+        examId: resultsExam.id,
+        userId: row.candidateId,
+        isSandbox: false,
+        status: "PUBLISHED",
+        seed: `seed-result-${candidateIndex + 1}`,
+        startedAt: hours(-72),
+        hardDeadlineAt: hours(-71),
+        submittedAt: hours(-71),
+        lastHeartbeatAt: hours(-71),
+        totalScore: row.total,
+        maxScore: 10,
+        lastClientSeq: 3,
+      },
+    });
+
+    for (const [questionIndex, assignment] of resultQuestions.entries()) {
+      const source = questions[Number(assignment.questionId.slice(-2)) - 1];
+      const snapshot = await prisma.attemptQuestionSnapshot.upsert({
+        where: { attemptId_questionId: { attemptId: attempt.id, questionId: assignment.questionId } },
+        update: {
+          displayOrder: questionIndex + 1,
+          type: source.type,
+          topic: source.topic,
+          difficulty: source.difficulty,
+          promptSnapshot: source.prompt,
+          optionsSnapshot: source.options ? (source.options as Prisma.InputJsonValue) : Prisma.JsonNull,
+          correctIdsSnap: source.correctIds ? (source.correctIds as Prisma.InputJsonValue) : Prisma.JsonNull,
+          maxMarks: assignment.marks,
+          multiSelectRule: MultiSelectScoring.PARTIAL_NO_NEGATIVE,
+          negativeRatio: 0,
+        },
+        create: {
+          attemptId: attempt.id,
+          questionId: assignment.questionId,
+          displayOrder: questionIndex + 1,
+          type: source.type,
+          topic: source.topic,
+          difficulty: source.difficulty,
+          promptSnapshot: source.prompt,
+          optionsSnapshot: source.options ? (source.options as Prisma.InputJsonValue) : Prisma.JsonNull,
+          correctIdsSnap: source.correctIds ? (source.correctIds as Prisma.InputJsonValue) : Prisma.JsonNull,
+          maxMarks: assignment.marks,
+          multiSelectRule: MultiSelectScoring.PARTIAL_NO_NEGATIVE,
+          negativeRatio: 0,
+        },
+      });
+      const objective = questionIndex < 2;
+      await prisma.attemptAnswer.upsert({
+        where: { snapshotId: snapshot.id },
+        update: {
+          selectedIdsJson: objective ? ((questionIndex === 0 ? row.single : row.multi) as Prisma.InputJsonValue) : Prisma.JsonNull,
+          writtenText: objective ? null : row.written,
+          clientSeq: questionIndex + 1,
+          autoScore: objective ? row.auto[questionIndex] : 0,
+          manualScore: objective ? null : row.manual,
+          graderFeedback: objective ? null : "Clear comparison with appropriate examples.",
+        },
+        create: {
+          attemptId: attempt.id,
+          snapshotId: snapshot.id,
+          selectedIdsJson: objective ? ((questionIndex === 0 ? row.single : row.multi) as Prisma.InputJsonValue) : Prisma.JsonNull,
+          writtenText: objective ? null : row.written,
+          clientSeq: questionIndex + 1,
+          autoScore: objective ? row.auto[questionIndex] : 0,
+          manualScore: objective ? null : row.manual,
+          graderFeedback: objective ? null : "Clear comparison with appropriate examples.",
+        },
+      });
+    }
+  }
+
+  console.info("Seeded Plan 4 published results with 3 graded attempts for analytics and reports.");
 }
 
 main()

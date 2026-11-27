@@ -234,6 +234,50 @@ export function ExamWorkspace({ examId, mode }: { examId: string; mode: "candida
   }, [attempt?.id, attempt?.status, queuedCount, syncState]);
 
   useEffect(() => {
+    if (mode !== "candidate" || !attempt?.id || attempt.status !== "IN_PROGRESS") return;
+    const source = new EventSource(`/api/exams/${examId}/stream`);
+    const announcement = (message: MessageEvent<string>) => {
+      const event = JSON.parse(message.data) as { payload?: { id?: string; message?: string }; occurredAt?: string };
+      if (!event.payload?.id || !event.payload.message) return;
+      const payload = { id: event.payload.id, message: event.payload.message };
+      setAttempt((current) => current ? {
+        ...current,
+        announcements: current.announcements.some((item) => item.id === payload.id)
+          ? current.announcements
+          : [...current.announcements, { ...payload, createdAt: event.occurredAt ?? new Date().toISOString() }],
+      } : current);
+    };
+    const extended = (message: MessageEvent<string>) => {
+      const event = JSON.parse(message.data) as { payload?: { effectiveDeadlineAt?: string; totalExtensionMinutes?: number } };
+      if (!event.payload?.effectiveDeadlineAt) return;
+      setAttempt((current) => current ? {
+        ...current,
+        effectiveDeadlineAt: event.payload!.effectiveDeadlineAt!,
+        timeExtensionMinutes: event.payload!.totalExtensionMinutes ?? current.timeExtensionMinutes,
+      } : current);
+    };
+    const snapshot = (message: MessageEvent<string>) => {
+      const event = JSON.parse(message.data) as {
+        serverNow?: string;
+        attempt?: { effectiveDeadlineAt?: string; timeExtensionMinutes?: number; status?: AttemptDto["status"] };
+        announcements?: AttemptDto["announcements"];
+      };
+      if (event.serverNow) setServerOffsetMs(new Date(event.serverNow).getTime() - Date.now());
+      setAttempt((current) => current ? {
+        ...current,
+        effectiveDeadlineAt: event.attempt?.effectiveDeadlineAt ?? current.effectiveDeadlineAt,
+        timeExtensionMinutes: event.attempt?.timeExtensionMinutes ?? current.timeExtensionMinutes,
+        status: event.attempt?.status ?? current.status,
+        announcements: event.announcements ?? current.announcements,
+      } : current);
+    };
+    source.addEventListener("ANNOUNCEMENT", announcement as EventListener);
+    source.addEventListener("TIME_EXTENDED", extended as EventListener);
+    source.addEventListener("SNAPSHOT", snapshot as EventListener);
+    return () => source.close();
+  }, [attempt?.id, attempt?.status, examId, mode]);
+
+  useEffect(() => {
     const attemptId = attempt?.id;
     if (!attemptId || attempt.status !== "IN_PROGRESS") return;
     const report = (eventType: "TAB_BLUR" | "FULLSCREEN_EXIT" | "PASTE_ATTEMPT") => {

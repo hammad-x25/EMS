@@ -1,5 +1,43 @@
 # Work Done
 
+## Plan 4 — Live Monitoring, Grading, Analytics & QR-Verifiable PDF Reports
+
+**Status:** Complete and verified on `feat/plan-04-monitoring-grading-analytics-reports`
+**Date:** 2026-11-27
+
+### Implementation commits
+
+- `0e99872` — add pinned PDFKit and QR code dependencies
+- `50dda15` — objective and manual grading engine with scoring-mode tests
+- `0053d83` — analytics, HMAC verification, QR, and PDF report engines
+- `2310ac4` — SSE monitoring, announcements, neutral incident signals, and audited outage extensions
+- `1cf5959` — grading, publication, analytics, results, report, and verification APIs
+- `40969e5` — examiner monitor/grading/analytics and candidate result/verification views
+- `fcc6f6d` — deterministic published grading and report fixtures
+- `dc67c62` — preserve PDFKit font assets in the Next.js runtime
+- `865ffd2` — accurately count review incidents and clean up closed SSE streams
+
+### Completed requirements
+
+- PDF 3.6 and Innovation 5.3: live SSE monitor, progress/connectivity/deadline state, neutral incident timelines, candidate announcements, and outage-gated time extensions with immutable hard deadlines and audit records.
+- PDF 3.7: automatic single-choice and all three multi-select scoring modes, negative marking and skipped-answer rules, validated written grading, preview totals, and explicit controlled publication.
+- PDF 3.8 and 4.5: candidate result access after publication, cohort mean/median/min/max/pass rate/histogram, skip and correctness rates, observed difficulty, distractor counts, and review flags.
+- PDF 4.2 and 4.6: access-controlled candidate/cohort PDFs, embedded QR codes, HMAC-signed versioned verification records, and a public verification view that exposes only masked/minimal fields.
+- Sandbox isolation: every monitor, grading, publication, analytics, and report aggregation query excludes `isSandbox: true` attempts.
+
+### Verification summary
+
+- Database generate and deterministic seed: passed against Docker PostgreSQL; three published Plan 4 result attempts were created with scores `9`, `4.5`, and `7` out of `10`.
+- TypeScript and ESLint: passed with 0 errors/warnings.
+- Vitest: 9 files, 32/32 tests passed, including 5 grading and 3 analytics/verification/PDF tests.
+- Next.js production build: passed; all Plan 4 pages and APIs compiled, including both PDF endpoints and the public verification route.
+- Live workflow: cohort analytics returned 3 submissions, mean `6.83`, median `7`, and pass rate `66.67%`; publication returned 3 attempts; owner result/PDF access succeeded while another candidate received `403`; public verification returned `VALID` with no email; outage extension was rejected before a gap, accepted after a simulated heartbeat loss, retained the hard deadline, and wrote `ATTEMPT_TIME_EXTENDED`; announcements and SSE snapshots were received; invalid written marks returned `409`, and valid marks moved the attempt to `GRADED`.
+- `git diff --check`: passed. `npm audit --omit=dev` still reports the two inherited PostCSS advisories requiring a breaking Next.js 16 upgrade; deferred to Plan 5.
+
+See [handoffs/04-monitoring-grading-analytics-reports.md](./handoffs/04-monitoring-grading-analytics-reports.md) for API contracts, exact verification commands, known issues, and the Plan 5 continuation step.
+
+---
+
 ## Plan 3 — Exam Delivery, Failure Resilience, Workspace & Sandbox
 
 **Status:** Complete and verified on `feat/plan-03-exam-delivery-resilience`
