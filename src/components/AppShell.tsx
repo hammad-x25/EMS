@@ -1,5 +1,5 @@
 import { Role } from "@prisma/client";
-import { Activity, BookOpenCheck, ClipboardList, LayoutDashboard, ScrollText, ShieldCheck, Users } from "lucide-react";
+import { Activity, BookOpenCheck, ClipboardList, LayoutDashboard, MessageSquareWarning, ScrollText, ShieldCheck, Users } from "lucide-react";
 import Link from "next/link";
 import { LogoutButton } from "@/components/LogoutButton";
 import type { SessionUser } from "@/lib/auth";
@@ -15,6 +15,7 @@ const navigation = {
     { href: "/examiner", label: "Examiner home", icon: LayoutDashboard },
     { href: "/examiner/questions", label: "Question bank", icon: BookOpenCheck },
     { href: "/examiner/exams", label: "Examinations", icon: ClipboardList },
+    { href: "/examiner/disputes", label: "Disputes", icon: MessageSquareWarning },
   ],
   CANDIDATE: [
     { href: "/candidate", label: "Candidate home", icon: LayoutDashboard },
@@ -25,6 +26,12 @@ const navigation = {
 export function AppShell({ session, children }: { session: SessionUser; children: React.ReactNode }) {
   return (
     <div className="min-h-screen md:grid md:grid-cols-[250px_1fr]">
+      <a
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-indigo-600 focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:text-white"
+        href="#main-content"
+      >
+        Skip to main content
+      </a>
       <aside className="flex flex-col bg-slate-950 p-5 text-slate-100 md:min-h-screen">
         <Link className="flex items-center gap-3 px-2 py-3 text-lg font-black" href="/"><ShieldCheck className="text-indigo-400" /> AegisExam</Link>
         <div className="mt-7 rounded-xl border border-slate-800 bg-slate-900 p-3">
@@ -41,7 +48,7 @@ export function AppShell({ session, children }: { session: SessionUser; children
         </nav>
         <LogoutButton />
       </aside>
-      <main className="min-w-0 p-5 md:p-8 lg:p-10">{children}</main>
+      <main className="min-w-0 p-5 md:p-8 lg:p-10" id="main-content">{children}</main>
     </div>
   );
 }

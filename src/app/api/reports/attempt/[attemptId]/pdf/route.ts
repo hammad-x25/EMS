@@ -41,6 +41,8 @@ export const GET = apiHandler<Context>(async (request, context) => {
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="aegis-score-${attemptId}.pdf"`,
       "Cache-Control": "private, no-store",
+      "X-Verification-Code": verification.record.code,
+      "X-Verification-Version": String(verification.record.version),
     },
   });
 });
