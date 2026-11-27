@@ -1,7 +1,10 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { CheckCircle2, FileSpreadsheet, Upload, X, AlertTriangle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileSpreadsheet, Upload } from "lucide-react";
+import { AlertBanner } from "@/components/ui/AlertBanner";
+import { Modal } from "@/components/ui/Modal";
+import { parseApiError, readApiJson } from "@/lib/form-errors";
 
 type ImportType = "questions" | "candidates";
 type ImportFormat = "csv" | "json";
@@ -127,9 +130,9 @@ export function BulkImportModal({
           enrollExamId: enrollExamId ?? undefined,
         }),
       });
-      const body = (await response.json()) as DryRunResult & { error?: { message?: string } };
-      if (!response.ok) {
-        throw new Error(body.error?.message ?? "Validation check failed");
+      const body = await readApiJson<DryRunResult & { error?: { message?: string } }>(response);
+      if (!response.ok || !body) {
+        throw new Error(parseApiError(body, "Validation check failed").message);
       }
       setDryRun(body);
     } catch (err: unknown) {
@@ -153,20 +156,20 @@ export function BulkImportModal({
           enrollExamId: enrollExamId ?? undefined,
         }),
       });
-      const body = (await response.json()) as {
+      const body = await readApiJson<{
         createdCount?: number;
         skippedExisting?: number;
         enrolledCount?: number;
         error?: { message?: string };
-      };
+      }>(response);
       if (!response.ok) {
-        throw new Error(body.error?.message ?? "Import failed");
+        throw new Error(parseApiError(body, "Import failed").message);
       }
 
       const summary =
         mode === "questions"
-          ? `Imported ${body.createdCount ?? 0} questions into your bank.`
-          : `Imported ${body.createdCount ?? 0} new candidates (${body.skippedExisting ?? 0} existing)${enrollExamId ? ` and enrolled ${body.enrolledCount ?? 0} in this examination.` : "."}`;
+          ? `Imported ${body?.createdCount ?? 0} questions into your bank.`
+          : `Imported ${body?.createdCount ?? 0} new candidates (${body?.skippedExisting ?? 0} existing)${enrollExamId ? ` and enrolled ${body?.enrolledCount ?? 0} in this examination.` : "."}`;
 
       onSuccess(summary);
       onClose();
@@ -177,168 +180,154 @@ export function BulkImportModal({
     }
   }
 
+  const title =
+    mode === "questions"
+      ? "Import questions from CSV or JSON"
+      : enrollExamId
+        ? "Import & enroll candidates from CSV or JSON"
+        : "Import candidate accounts";
+
   return (
-    <div
-      className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="bulk-import-title"
+    <Modal
+      closeDisabled={busy}
+      closeLabel="Close bulk import modal"
+      description="Run a dry-run validation check before committing records."
+      eyebrow="Bulk import"
+      onClose={onClose}
+      open
+      size="xl"
+      title={title}
     >
-      <div className="card max-h-[90vh] w-full max-w-3xl overflow-y-auto p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="eyebrow">Bulk import</p>
-            <h2 className="mt-1 text-xl font-black" id="bulk-import-title">
-              {mode === "questions"
-                ? "Import questions from CSV or JSON"
-                : enrollExamId
-                  ? "Import & enroll candidates from CSV or JSON"
-                  : "Import candidate accounts"}
-            </h2>
+      <form className="space-y-4" onSubmit={runDryCheck}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <button
+              className={format === "csv" ? "btn-primary h-9 px-3 text-xs" : "btn-secondary h-9 px-3 text-xs"}
+              onClick={() => setFormat("csv")}
+              type="button"
+            >
+              CSV
+            </button>
+            <button
+              className={format === "json" ? "btn-primary h-9 px-3 text-xs" : "btn-secondary h-9 px-3 text-xs"}
+              onClick={() => setFormat("json")}
+              type="button"
+            >
+              JSON
+            </button>
           </div>
-          <button
-            aria-label="Close bulk import modal"
-            className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
-            onClick={onClose}
-            type="button"
-          >
-            <X size={20} />
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              className="btn-secondary h-9 px-3 text-xs"
+              onClick={() => loadSample("csv")}
+              type="button"
+            >
+              <FileSpreadsheet size={14} /> Load sample CSV
+            </button>
+            <button
+              className="btn-secondary h-9 px-3 text-xs"
+              onClick={() => loadSample("json")}
+              type="button"
+            >
+              Load sample JSON
+            </button>
+            <label className="btn-secondary h-9 cursor-pointer px-3 text-xs">
+              <Upload size={14} /> Upload file
+              <input
+                accept=".csv,.json,text/csv,application/json"
+                className="sr-only"
+                onChange={(event) => void handleFileUpload(event.target.files?.[0])}
+                type="file"
+              />
+            </label>
+          </div>
         </div>
 
-        <form className="mt-5 space-y-4" onSubmit={runDryCheck}>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <button
-                className={format === "csv" ? "btn-primary px-3 py-1.5 text-sm" : "btn-secondary px-3 py-1.5 text-sm"}
-                onClick={() => setFormat("csv")}
-                type="button"
-              >
-                CSV
-              </button>
-              <button
-                className={format === "json" ? "btn-primary px-3 py-1.5 text-sm" : "btn-secondary px-3 py-1.5 text-sm"}
-                onClick={() => setFormat("json")}
-                type="button"
-              >
-                JSON
-              </button>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                className="btn-secondary px-3 py-1.5 text-xs"
-                onClick={() => loadSample("csv")}
-                type="button"
-              >
-                <FileSpreadsheet size={14} /> Load sample CSV
-              </button>
-              <button
-                className="btn-secondary px-3 py-1.5 text-xs"
-                onClick={() => loadSample("json")}
-                type="button"
-              >
-                Load sample JSON
-              </button>
-              <label className="btn-secondary cursor-pointer px-3 py-1.5 text-xs">
-                <Upload size={14} /> Upload file
-                <input
-                  accept=".csv,.json,text/csv,application/json"
-                  className="sr-only"
-                  onChange={(event) => void handleFileUpload(event.target.files?.[0])}
-                  type="file"
-                />
-              </label>
-            </div>
+        <label className="block text-sm font-semibold text-[var(--text-primary)]">
+          Import payload ({format.toUpperCase()})
+          <textarea
+            className="field font-mono-tabular mt-1.5 min-h-44 text-xs"
+            onChange={(event) => {
+              setContent(event.target.value);
+              setDryRun(null);
+            }}
+            placeholder={
+              mode === "questions"
+                ? "Paste CSV with headers: topic,difficulty,type,prompt,options,correctIds,maxMarks,explanation"
+                : "Paste CSV with headers: name,email,studentId"
+            }
+            required
+            value={content}
+          />
+        </label>
+
+        {errorMessage ? <AlertBanner variant="error">{errorMessage}</AlertBanner> : null}
+
+        <div className="flex flex-wrap justify-end gap-2 border-t border-[var(--border-subtle)] pt-4">
+          <button className="btn-secondary" disabled={busy} onClick={onClose} type="button">
+            Cancel
+          </button>
+          <button className="btn-secondary" disabled={busy || !content.trim()} type="submit">
+            {busy ? "Validating…" : "Validate (Dry Run)"}
+          </button>
+          <button
+            className="btn-primary"
+            disabled={busy || !dryRun || dryRun.errorCount > 0 || dryRun.validCount === 0}
+            onClick={() => void commitImport()}
+            type="button"
+          >
+            {busy ? "Importing…" : `Commit ${dryRun?.validCount ?? 0} valid rows`}
+          </button>
+        </div>
+      </form>
+
+      {dryRun ? (
+        <div className="mt-5 space-y-3 border-t border-[var(--border-subtle)] pt-4">
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <span className="status-pill status-active">
+              <CheckCircle2 size={14} /> {dryRun.validCount} valid rows
+            </span>
+            {dryRun.errorCount > 0 ? (
+              <span className="status-pill status-inactive">
+                <AlertTriangle size={14} /> {dryRun.errorCount} validation errors
+              </span>
+            ) : null}
+            <span className="font-mono-tabular text-xs text-[var(--text-secondary)]">
+              Total parsed: {dryRun.totalRows}
+            </span>
           </div>
 
-          <label className="block text-sm font-bold">
-            Import payload ({format.toUpperCase()})
-            <textarea
-              className="field mt-2 min-h-44 font-mono text-xs"
-              onChange={(event) => {
-                setContent(event.target.value);
-                setDryRun(null);
-              }}
-              placeholder={
-                mode === "questions"
-                  ? "Paste CSV with headers: topic,difficulty,type,prompt,options,correctIds,maxMarks,explanation"
-                  : "Paste CSV with headers: name,email,studentId"
-              }
-              required
-              value={content}
-            />
-          </label>
-
-          {errorMessage ? (
-            <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
-              {errorMessage}
+          {dryRun.errors.length > 0 ? (
+            <div className="max-h-48 overflow-y-auto rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] p-3 text-xs text-[var(--status-danger-text)]">
+              <p className="font-bold">Fix the following errors before committing:</p>
+              <ul className="mt-2 space-y-1">
+                {dryRun.errors.map((err, idx) => (
+                  <li key={`${err.row}-${err.field}-${idx}`}>
+                    <strong>Row {err.row}</strong> ({err.field}): {err.message}
+                  </li>
+                ))}
+              </ul>
             </div>
           ) : null}
 
-          <div className="flex flex-wrap justify-end gap-2">
-            <button className="btn-secondary" onClick={onClose} type="button">
-              Cancel
-            </button>
-            <button className="btn-secondary" disabled={busy || !content.trim()} type="submit">
-              {busy ? "Validating…" : "Validate (Dry Run)"}
-            </button>
-            <button
-              className="btn-primary"
-              disabled={busy || !dryRun || dryRun.errorCount > 0 || dryRun.validCount === 0}
-              onClick={() => void commitImport()}
-              type="button"
-            >
-              {busy ? "Importing…" : `Commit ${dryRun?.validCount ?? 0} valid rows`}
-            </button>
-          </div>
-        </form>
-
-        {dryRun ? (
-          <div className="mt-5 space-y-3 border-t border-slate-200 pt-4">
-            <div className="flex flex-wrap items-center gap-3 text-sm">
-              <span className="status-pill status-active">
-                <CheckCircle2 size={14} /> {dryRun.validCount} valid rows
-              </span>
-              {dryRun.errorCount > 0 ? (
-                <span className="status-pill status-inactive">
-                  <AlertTriangle size={14} /> {dryRun.errorCount} validation errors
-                </span>
-              ) : null}
-              <span className="text-slate-500">Total parsed: {dryRun.totalRows}</span>
+          {dryRun.preview.length > 0 ? (
+            <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface-subtle)] p-3 text-xs">
+              <p className="font-bold text-[var(--text-primary)]">
+                Preview (showing up to {dryRun.preview.length} valid rows):
+              </p>
+              <ul className="mt-2 space-y-1 text-[var(--text-secondary)]">
+                {dryRun.preview.map((row, idx) => (
+                  <li className="truncate" key={idx}>
+                    {mode === "questions"
+                      ? `[${String(row.topic)}] ${String(row.difficulty)} · ${String(row.type)} · ${String(row.prompt)} (${String(row.maxMarks)}m)`
+                      : `${String(row.name)} (${String(row.email)}) · ${String(row.status ?? "")}`}
+                  </li>
+                ))}
+              </ul>
             </div>
-
-            {dryRun.errors.length > 0 ? (
-              <div className="max-h-48 overflow-y-auto rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-900">
-                <p className="font-bold">Fix the following errors before committing:</p>
-                <ul className="mt-2 space-y-1">
-                  {dryRun.errors.map((err, idx) => (
-                    <li key={`${err.row}-${err.field}-${idx}`}>
-                      <strong>Row {err.row}</strong> ({err.field}): {err.message}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-
-            {dryRun.preview.length > 0 ? (
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs">
-                <p className="font-bold text-slate-700">
-                  Preview (showing up to {dryRun.preview.length} valid rows):
-                </p>
-                <ul className="mt-2 space-y-1 text-slate-600">
-                  {dryRun.preview.map((row, idx) => (
-                    <li key={idx} className="truncate">
-                      {mode === "questions"
-                        ? `[${String(row.topic)}] ${String(row.difficulty)} · ${String(row.type)} · ${String(row.prompt)} (${String(row.maxMarks)}m)`
-                        : `${String(row.name)} (${String(row.email)}) · ${String(row.status ?? "")}`}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-    </div>
+          ) : null}
+        </div>
+      ) : null}
+    </Modal>
   );
 }
