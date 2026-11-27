@@ -8,6 +8,7 @@ import { hashPassword } from "@/lib/auth";
 import { parseCandidateImport } from "@/lib/bulk-import";
 import { db } from "@/lib/db";
 import { ForbiddenError, NotFoundError, UnprocessableError } from "@/lib/errors";
+import { assertRateLimit } from "@/lib/rate-limit";
 import { requireAuth } from "@/lib/rbac";
 import { toUserDto } from "@/lib/user-dto";
 
@@ -24,6 +25,7 @@ function generateTemporaryPassword(): string {
 
 export const POST = apiHandler(async (request) => {
   const actor = await requireAuth([Role.EXAMINER, Role.ADMIN]);
+  assertRateLimit(`import:candidates:${actor.userId}`, { maxAttempts: 20, windowMs: 60_000 });
   const input = ImportCandidatesRequestSchema.parse(await request.json());
 
   if (input.enrollExamId) {

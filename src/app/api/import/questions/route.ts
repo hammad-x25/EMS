@@ -7,6 +7,7 @@ import { parseQuestionImport } from "@/lib/bulk-import";
 import { db } from "@/lib/db";
 import { UnprocessableError } from "@/lib/errors";
 import { toQuestionDto, toQuestionPersistenceData } from "@/lib/question-bank";
+import { assertRateLimit } from "@/lib/rate-limit";
 import { requireAuth } from "@/lib/rbac";
 
 const ImportQuestionsRequestSchema = z.object({
@@ -17,6 +18,7 @@ const ImportQuestionsRequestSchema = z.object({
 
 export const POST = apiHandler(async (request) => {
   const actor = await requireAuth([Role.EXAMINER, Role.ADMIN]);
+  assertRateLimit(`import:questions:${actor.userId}`, { maxAttempts: 20, windowMs: 60_000 });
   const input = ImportQuestionsRequestSchema.parse(await request.json());
   const parsed = parseQuestionImport(input.content, input.format);
 
