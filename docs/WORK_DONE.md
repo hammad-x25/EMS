@@ -1,5 +1,40 @@
 # Work Done
 
+## Plan 5 — Trust & Dispute Resolution, Polish, Verification & Deployment
+
+**Status:** Complete and verified on `feat/plan-05-disputes-polish-deploy`  
+**Date:** 2026-11-27
+
+### Implementation commits
+
+- `c3152d7` — dispute resolution service (`src/lib/disputes.ts`), attempt-level delta preservation in `recomputeAttemptTotals`, and unit tests
+- `e4d6227` — `/api/disputes` and `/api/disputes/[id]/resolve` route handlers
+- `dfa70bf` — Candidate `DisputePanel`, Examiner `DisputeWorkbench`, and navigation integration
+- `eb5fa96` — skip-to-content accessibility landmarks, global error/loading boundaries, `output: "standalone"`, and open-disputes summary card
+- `e8d5080` — isolate client-safe `dispute-types.ts` from server `node:crypto` imports
+- `60fc44e` — multi-stage production `Dockerfile`, `.dockerignore`, `docker-compose.prod.yml`, and full submission `README.md`
+- `b53961f` — Playwright end-to-end exam lifecycle suite (`e2e/exam-lifecycle.spec.ts`) and `X-Verification-Code` PDF header
+
+### Completed requirements
+
+- Open Innovation 5.4: candidate dispute filing (`GRADING_ERROR`, `AMBIGUOUS_QUESTION`, `TECHNICAL_INCIDENT`, `INCIDENT_APPEAL`) on published attempts, Examiner dispute queue with immutable question snapshots and neutral incident timelines, audited outcomes (`UNDER_REVIEW`, `RESOLVED_UPHELD`, `RESOLVED_ADJUSTED`, `REJECTED`), score recalculation, and automatic issuance of a new `ReportVerification` version (`REVOKED_SUPERSEDED` on prior codes).
+- PDF 06 & 08: keyboard skip-to-content landmark, global `error.tsx` / `loading.tsx`, standalone Next.js build, and security response headers.
+- PDF 07: production `Dockerfile` (with PDFKit AFM assets), provider-neutral `docker-compose.prod.yml`, complete `README.md` with seeded test credentials and innovation trade-offs, and automated Playwright E2E coverage across all 3 roles.
+
+### Verification summary
+
+- `npx prisma generate` and `npm run db:seed`: passed cleanly against Docker PostgreSQL.
+- TypeScript (`npm run typecheck`): passed with 0 errors.
+- ESLint (`npm run lint`): passed with 0 warnings.
+- Vitest (`npm test`): 10 files, 35/35 tests passed (including 3 dispute validation & bounds tests).
+- Next.js production build (`npm run build`): passed; 18 static pages and all dynamic/API routes compiled in standalone mode.
+- Playwright E2E (`npx playwright test`): 1/1 end-to-end suite passed in 47.4s (Admin RBAC, Fairness Inspector, Sandbox, offline/online exam sync, grading, PDF/QR verification, Dispute adjustment, and v1→v2 verification supersession).
+- Docker build (`docker build -t aegis-exam .`): passed (`23/23` build steps, `aegis-exam:latest` created).
+
+See [handoffs/05-disputes-polish-verification-deploy.md](./handoffs/05-disputes-polish-verification-deploy.md) for full details and final submission readiness.
+
+---
+
 ## Plan 4 — Live Monitoring, Grading, Analytics & QR-Verifiable PDF Reports
 
 **Status:** Complete and verified on `feat/plan-04-monitoring-grading-analytics-reports`
