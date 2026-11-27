@@ -376,7 +376,11 @@ export async function startOrResumeAttempt(params: {
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
   } catch (error: unknown) {
-    if (error instanceof ConflictError) {
+    if (
+      error instanceof ConflictError ||
+      (error instanceof Prisma.PrismaClientKnownRequestError &&
+        ["P2002", "P2034"].includes(error.code))
+    ) {
       const raced = await db.attempt.findFirst({
         where: { examId: exam.id, userId: params.actor.userId, isSandbox: params.sandbox },
         include: attemptInclude,
@@ -442,59 +446,73 @@ export async function syncAnswers(
   let highestClientSeq = attempt.lastClientSeq;
   const connectionGapMs = now.getTime() - attempt.lastHeartbeatAt.getTime();
 
-  await db.$transaction(async (tx) => {
-    for (const mutation of [...mutations].sort((a, b) => a.clientSeq - b.clientSeq)) {
-      const snapshot = snapshots.get(mutation.snapshotId);
-      if (!snapshot) throw new BadRequestError("Question snapshot does not belong to this attempt", "INVALID_SNAPSHOT");
-      validateMutation(snapshot, mutation);
-      const existing = await tx.attemptAnswer.findUnique({ where: { snapshotId: mutation.snapshotId } });
-      if (!shouldApplyMutation(existing?.clientSeq ?? null, mutation.clientSeq)) {
-        ignored += 1;
-        continue;
+  await db.$transaction(
+    async (tx) => {
+      for (const mutation of [...mutations].sort((a, b) => a.clientSeq - b.clientSeq)) {
+        const snapshot = snapshots.get(mutation.snapshotId);
+        if (!snapshot) {
+          throw new BadRequestError(
+            "Question snapshot does not belong to this attempt",
+            "INVALID_SNAPSHOT",
+          );
+        }
+        validateMutation(snapshot, mutation);
+        const existing = await tx.attemptAnswer.findUnique({
+          where: { snapshotId: mutation.snapshotId },
+        });
+        if (!shouldApplyMutation(existing?.clientSeq ?? null, mutation.clientSeq)) {
+          ignored += 1;
+          continue;
+        }
+        const selectedIds = mutation.selectedIds ?? [];
+        await tx.attemptAnswer.upsert({
+          where: { snapshotId: mutation.snapshotId },
+          update: {
+            selectedIdsJson: snapshot.type === QuestionType.WRITTEN
+              ? Prisma.JsonNull
+              : (selectedIds as Prisma.InputJsonValue),
+            writtenText: snapshot.type === QuestionType.WRITTEN
+              ? mutation.writtenText ?? ""
+              : null,
+            markedForReview: mutation.markedForReview,
+            clientSeq: mutation.clientSeq,
+            savedAt: now,
+          },
+          create: {
+            attemptId: attempt.id,
+            snapshotId: mutation.snapshotId,
+            selectedIdsJson: snapshot.type === QuestionType.WRITTEN
+              ? Prisma.JsonNull
+              : (selectedIds as Prisma.InputJsonValue),
+            writtenText: snapshot.type === QuestionType.WRITTEN
+              ? mutation.writtenText ?? ""
+              : null,
+            markedForReview: mutation.markedForReview,
+            clientSeq: mutation.clientSeq,
+            savedAt: now,
+          },
+        });
+        accepted += 1;
+        highestClientSeq = Math.max(highestClientSeq, mutation.clientSeq);
       }
-      const selectedIds = mutation.selectedIds ?? [];
-      await tx.attemptAnswer.upsert({
-        where: { snapshotId: mutation.snapshotId },
-        update: {
-          selectedIdsJson: snapshot.type === QuestionType.WRITTEN
-            ? Prisma.JsonNull
-            : (selectedIds as Prisma.InputJsonValue),
-          writtenText: snapshot.type === QuestionType.WRITTEN ? mutation.writtenText ?? "" : null,
-          markedForReview: mutation.markedForReview,
-          clientSeq: mutation.clientSeq,
-          savedAt: now,
-        },
-        create: {
-          attemptId: attempt.id,
-          snapshotId: mutation.snapshotId,
-          selectedIdsJson: snapshot.type === QuestionType.WRITTEN
-            ? Prisma.JsonNull
-            : (selectedIds as Prisma.InputJsonValue),
-          writtenText: snapshot.type === QuestionType.WRITTEN ? mutation.writtenText ?? "" : null,
-          markedForReview: mutation.markedForReview,
-          clientSeq: mutation.clientSeq,
-          savedAt: now,
-        },
+      await tx.attempt.update({
+        where: { id: attempt.id },
+        data: { lastClientSeq: highestClientSeq, lastHeartbeatAt: now },
       });
-      accepted += 1;
-      highestClientSeq = Math.max(highestClientSeq, mutation.clientSeq);
-    }
-    await tx.attempt.update({
-      where: { id: attempt.id },
-      data: { lastClientSeq: highestClientSeq, lastHeartbeatAt: now },
-    });
-    if (connectionGapMs > 15_000) {
-      await tx.attemptEvent.create({
-        data: {
-          attemptId: attempt.id,
-          eventType: "RECONNECTED",
-          severity: "INFO",
-          metadata: { gapSeconds: Math.round(connectionGapMs / 1000) },
-          occurredAt: now,
-        },
-      });
-    }
-  });
+      if (connectionGapMs > 15_000) {
+        await tx.attemptEvent.create({
+          data: {
+            attemptId: attempt.id,
+            eventType: "RECONNECTED",
+            severity: "INFO",
+            metadata: { gapSeconds: Math.round(connectionGapMs / 1000) },
+            occurredAt: now,
+          },
+        });
+      }
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  );
 
   return { accepted, ignored, attempt: await getAttempt(actor, attempt.id, now) };
 }
