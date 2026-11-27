@@ -108,7 +108,7 @@ export async function getMonitorSnapshot(examId: string, now = new Date()): Prom
         hardDeadlineAt: attempt.hardDeadlineAt.toISOString(),
         effectiveDeadlineAt: effectiveDeadline(attempt.hardDeadlineAt, attempt.timeExtensionMinutes).toISOString(),
         timeExtensionMinutes: attempt.timeExtensionMinutes,
-        incidentCount: attempt.events.filter((event) => event.eventType !== "RECONNECTED").length,
+        incidentCount: attempt.events.filter((event) => event.severity === "NOTICE").length,
         events: attempt.events.map((event) => ({
           id: event.id,
           eventType: event.eventType,

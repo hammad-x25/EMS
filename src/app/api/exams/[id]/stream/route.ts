@@ -28,6 +28,7 @@ export const GET = apiHandler<Context>(async (request, context) => {
 
   const encoder = new TextEncoder();
   let closed = false;
+  let cleaned = false;
   let cleanup = () => undefined;
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
@@ -78,7 +79,8 @@ export const GET = apiHandler<Context>(async (request, context) => {
       const snapshotTimer = setInterval(() => void fallback(), 5_000);
       const keepAliveTimer = setInterval(() => send("KEEPALIVE", { at: new Date().toISOString() }), 15_000);
       cleanup = () => {
-        if (closed) return;
+        if (cleaned) return;
+        cleaned = true;
         closed = true;
         clearInterval(snapshotTimer);
         clearInterval(keepAliveTimer);
