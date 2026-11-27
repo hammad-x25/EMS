@@ -72,7 +72,8 @@ export const GET = apiHandler<Context>(async (request, context) => {
             send("SNAPSHOT", await getMonitorSnapshot(id));
           }
         } catch (error: unknown) {
-          send("STREAM_WARNING", { message: error instanceof Error ? error.message : "Snapshot refresh failed" });
+          console.error("SSE snapshot refresh error", error);
+          send("STREAM_WARNING", { message: "Temporary snapshot refresh delay" });
         }
       };
       void fallback();

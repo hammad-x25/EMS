@@ -84,11 +84,12 @@ const DIFFICULTY_WEIGHT: Record<Difficulty, number> = {
 };
 
 function getFairnessSecret(): string {
-  return (
-    process.env.REPORT_HMAC_SECRET ||
-    process.env.AUTH_SECRET ||
-    "aegis-exam-deterministic-fairness-seed"
-  );
+  const secret = process.env.REPORT_HMAC_SECRET || process.env.AUTH_SECRET;
+  if (secret) return secret;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("REPORT_HMAC_SECRET or AUTH_SECRET must be configured in production");
+  }
+  return "aegis-exam-deterministic-fairness-seed";
 }
 
 export function deriveAttemptSeed(attemptId: string): string {
