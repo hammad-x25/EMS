@@ -10,6 +10,7 @@ import { z } from "zod";
 import type { SessionUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
+import { publishExamEvent } from "@/lib/event-bus";
 import { reconcileExamStatuses } from "@/lib/exam-lifecycle";
 import { deriveAttemptSeed, generateBalancedPaper, type PoolQuestion } from "@/lib/fairness";
 import { recomputeAttemptTotals } from "@/lib/grading";
@@ -515,6 +516,14 @@ export async function syncAnswers(
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
 
+  publishExamEvent({
+    type: "ATTEMPT_PROGRESS",
+    examId: attempt.examId,
+    attemptId: attempt.id,
+    userId: attempt.userId,
+    payload: { accepted, ignored, lastClientSeq: highestClientSeq },
+  });
+
   return { accepted, ignored, attempt: await getAttempt(actor, attempt.id, now) };
 }
 
@@ -537,7 +546,7 @@ export async function recordAttemptEvent(
   const attempt = await loadWorkspaceAttempt(attemptId);
   assertAttemptAccess(actor, attempt);
   if (attempt.status !== AttemptStatus.IN_PROGRESS) return;
-  await db.attemptEvent.create({
+  const event = await db.attemptEvent.create({
     data: {
       attemptId,
       eventType: input.eventType,
@@ -545,6 +554,13 @@ export async function recordAttemptEvent(
       metadata: input.metadata as Prisma.InputJsonValue | undefined,
       occurredAt: now,
     },
+  });
+  publishExamEvent({
+    type: "INCIDENT_LOGGED",
+    examId: attempt.examId,
+    attemptId,
+    userId: attempt.userId,
+    payload: { eventId: event.id, eventType: event.eventType, severity: event.severity },
   });
 }
 
@@ -559,6 +575,13 @@ export async function submitAttempt(actor: SessionUser, attemptId: string, now =
       data: { status: targetStatus, submittedAt: now },
     });
     if (!attempt.isSandbox) await recomputeAttemptTotals(attempt.id);
+    publishExamEvent({
+      type: "ATTEMPT_SUBMITTED",
+      examId: attempt.examId,
+      attemptId: attempt.id,
+      userId: attempt.userId,
+      payload: { status: targetStatus },
+    });
   }
   return getAttempt(actor, attemptId, now);
 }
