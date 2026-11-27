@@ -6,7 +6,7 @@ import {
   shouldApplyMutation,
 } from "@/lib/attempts";
 
-describe("attempt delivery rules", () => {
+describe("attempt synchronization and delivery rules", () => {
   it("keeps the immutable hard deadline and applies extensions separately", () => {
     const hardDeadline = new Date("2026-11-27T12:00:00.000Z");
 

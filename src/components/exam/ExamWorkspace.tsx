@@ -13,6 +13,7 @@ import { type SyncState } from "@/components/exam/NetworkStatusPill";
 import { WorkspacePreferencesDrawer } from "@/components/exam/WorkspacePreferencesDrawer";
 import type { AttemptDto, AttemptQuestionDto } from "@/lib/attempts";
 import {
+  clearAttemptLocalData,
   getQueuedMutations,
   queueAnswerMutation,
   removeAcknowledgedMutations,
@@ -341,6 +342,7 @@ export function ExamWorkspace({ examId, mode }: { examId: string; mode: "candida
     try {
       const response = await fetch(`/api/exams/${examId}/sandbox`, { method: "DELETE" });
       if (!response.ok) throw new Error("Unable to reset sandbox");
+      if (attemptRef.current) await clearAttemptLocalData(attemptRef.current.id);
       window.location.reload();
     } catch (resetError: unknown) {
       setError(resetError instanceof Error ? resetError.message : "Unable to reset sandbox");
