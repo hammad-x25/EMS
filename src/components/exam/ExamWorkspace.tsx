@@ -526,16 +526,19 @@ export function ExamWorkspace({ examId, mode }: { examId: string; mode: "candida
     setError(null);
     try {
       await flushPendingWritten(false);
-      let pending = await getQueuedMutations(current.id);
-      for (let attemptNumber = 0; attemptNumber < 3 && pending.length > 0 && navigator.onLine; attemptNumber += 1) {
-        await flushQueue(current.id);
-        await new Promise((resolve) => window.setTimeout(resolve, 100));
-        pending = await getQueuedMutations(current.id);
+      const pending = await getQueuedMutations(current.id);
+      if (pending.length > 0 && !navigator.onLine) {
+        setSyncState("OFFLINE_QUEUED");
+        throw new Error(
+          "Reconnect and synchronize queued answers before submitting so your pending answers can be sealed safely.",
+        );
       }
-      if (pending.length > 0 && !automatic) {
-        throw new Error("Reconnect and synchronize queued answers before final submission.");
-      }
-      const response = await fetch(`/api/attempts/${current.id}/submit`, { method: "POST" });
+      if (pending.length > 0) setSyncState("SAVING");
+      const response = await fetch(`/api/attempts/${current.id}/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mutations: pending }),
+      });
       const body = (await response.json().catch(() => null)) as { attempt?: AttemptDto } | null;
       if (!response.ok || !body?.attempt) throw new Error(errorMessage(body, "Unable to submit this attempt"));
       await removeAcknowledgedMutations(current.id, pending);
@@ -912,7 +915,7 @@ export function ExamWorkspace({ examId, mode }: { examId: string; mode: "candida
       <ReviewSubmitModal
         busy={submitting}
         onClose={() => setReviewOpen(false)}
-        onSubmit={() => void finalizeAttempt(false)}
+        onSubmit={() => void finalizeAttempt()}
         open={reviewOpen}
         queuedCount={queuedCount}
         questions={attempt.questions}
