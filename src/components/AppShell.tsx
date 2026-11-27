@@ -11,8 +11,15 @@ const navigation = {
     { href: "/admin/audit", label: "Audit trail", icon: ScrollText },
     { href: "/admin/health", label: "System health", icon: Activity },
   ],
-  EXAMINER: [{ href: "/examiner", label: "Examiner home", icon: ClipboardList }],
-  CANDIDATE: [{ href: "/candidate", label: "Candidate home", icon: BookOpenCheck }],
+  EXAMINER: [
+    { href: "/examiner", label: "Examiner home", icon: LayoutDashboard },
+    { href: "/examiner/questions", label: "Question bank", icon: BookOpenCheck },
+    { href: "/examiner/exams", label: "Examinations", icon: ClipboardList },
+  ],
+  CANDIDATE: [
+    { href: "/candidate", label: "Candidate home", icon: LayoutDashboard },
+    { href: "/candidate/dashboard", label: "My examinations", icon: BookOpenCheck },
+  ],
 } satisfies Record<Role, Array<{ href: string; label: string; icon: typeof LayoutDashboard }>>;
 
 export function AppShell({ session, children }: { session: SessionUser; children: React.ReactNode }) {
