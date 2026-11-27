@@ -45,6 +45,7 @@ Implement the complete **Examination Setup & Access** pipeline: reusable Questio
   - `DRAFT` → `PUBLISHED` (requires `>= 1` assigned question or valid blueprint matching `totalMarks`, plus valid `scheduledStart < scheduledEnd`).
   - `PUBLISHED` → `ONGOING` (manual start or automatic when `now >= scheduledStart`).
   - `ONGOING` → `COMPLETED` (manual close or automatic when `now >= scheduledEnd`; triggers pending attempt expiry sweep).
+- Lifecycle reconciliation runs from server-side exam reads and mutations so time-based transitions are persisted without trusting a browser clock.
 - Also enforces **Examiner Ownership**: Examiner A cannot edit/publish/view Examiner B's private exams unless `ADMIN`.
 
 #### [NEW] `src/app/api/exams/**` & `src/app/examiner/exams/**`

@@ -22,7 +22,7 @@ Build the distraction-free **Examination Workspace** (3.5), backed by **Server-A
 
 #### [NEW] `src/app/api/attempts/[id]/route.ts` & `src/app/api/attempts/[id]/submit/route.ts`
 - `GET /api/attempts/[id]`: returns current attempt state, snapshots, saved answers, `serverNow`, `hardDeadlineAt`, and active announcements. Auto-transitions to `EXPIRED` if `now > hardDeadlineAt`.
-- `POST /api/attempts/[id]/submit`: transactional finalization (`WHERE status = 'IN_PROGRESS'`), prevents duplicate submissions, invokes objective auto-grader (Plan 4) immediately for MCQ/Multi-Select items.
+- `POST /api/attempts/[id]/submit`: transactional finalization (`WHERE status = 'IN_PROGRESS'`) and duplicate-submission prevention. Plan 4 grades finalized attempts and owns grading-state transitions.
 
 ---
 
@@ -38,7 +38,7 @@ Build the distraction-free **Examination Workspace** (3.5), backed by **Server-A
 
 #### [NEW] `src/app/api/attempts/[id]/sync/route.ts`
 - Batch-idempotent endpoint accepting `{ mutations: AnswerMutation[] }`.
-- Server checks `serverNow <= hardDeadlineAt + 5000ms`:
+- Server calculates `effectiveDeadlineAt = hardDeadlineAt + timeExtensionMinutes` and checks `serverNow <= effectiveDeadlineAt + 5000ms`:
   - Rejects mutations after expiry (`EXPIRED`) so candidates **cannot** disconnect Wi-Fi to gain extra exam time.
   - Compares `mutation.clientSeq > existingAnswer.clientSeq` to prevent stale out-of-order overwrites.
   - Logs `RECONNECTED` event in `AttemptEvent` when resuming after a gap > 15s (`lastHeartbeatAt`).

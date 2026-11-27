@@ -35,7 +35,7 @@ Establish the Next.js App Router TypeScript repository, Dockerized PostgreSQL da
   - **2 Examiners**: `examiner1@aegisexam.local` / `Examiner@123!`, `examiner2@aegisexam.local` / `Examiner@123!`
   - **5 Candidates**: `candidate1@aegisexam.local` .. `candidate5@aegisexam.local` / `Candidate@123!`
   - **Sample Question Bank**: 24 questions across 3 topics (`Algorithms`, `Databases`, `Networks`) and 3 difficulties (`EASY`, `MEDIUM`, `HARD`), mixing `SINGLE_MCQ`, `MULTI_SELECT`, and `WRITTEN`.
-  - **Sample Exams**: 1 `COMPLETED` exam (with graded/published sample attempts for immediate Analytics/PDF/Dispute demo), 1 `ONGOING` exam (ready for live Candidate taking & Examiner monitoring), and 1 `DRAFT` exam.
+  - Exam, attempt, grading, analytics, and report fixtures are intentionally deferred to Plans 2–4 so seeded records are created through their owning domain rules.
 
 ---
 
@@ -44,6 +44,7 @@ Establish the Next.js App Router TypeScript repository, Dockerized PostgreSQL da
 - `hashPassword(plain)` & `verifyPassword(plain, hash)` using `bcryptjs` (cost 10).
 - `signSessionToken(payload)` & `verifySessionToken(token)` using `jose` (`HS256`, 8-hour expiry).
 - `setSessionCookie(token)` & `clearSessionCookie()` setting `httpOnly: true`, `sameSite: 'lax'`, `path: '/'`.
+- Session cookies set `secure: true` in production while allowing local HTTP development.
 - `getSession()` reading & verifying the cookie in Server Components and Route Handlers; checks `user.isActive` in DB on sensitive mutations.
 
 #### [NEW] `src/lib/rbac.ts` & `src/middleware.ts`
@@ -52,7 +53,7 @@ Establish the Next.js App Router TypeScript repository, Dockerized PostgreSQL da
   export async function requireAuth(allowedRoles?: Role[]): Promise<SessionUser>
   ```
   Throws typed `AuthError(401)` or `ForbiddenError(403)` caught by centralized `apiHandler()` wrapper (`src/lib/api-handler.ts`).
-- `src/middleware.ts` protects route groups (`/admin/*`, `/examiner/*`, `/candidate/*`) by role and redirects unauthenticated users to `/login`. Public routes remain accessible only for `/`, `/login`, `/verify/*`, and `/api/health`.
+- `src/middleware.ts` protects route groups (`/admin/*`, `/examiner/*`, `/candidate/*`) by role and redirects unauthenticated users to `/login`. Public routes include `/`, `/login`, `/api/auth/login`, `/verify/*`, `/api/verify/*`, and `/api/health`.
 
 #### [NEW] `src/app/api/auth/login/route.ts`, `logout/route.ts`, `me/route.ts`
 - Zod-validated login, logout, and current-user profile endpoints.
@@ -70,6 +71,7 @@ Establish the Next.js App Router TypeScript repository, Dockerized PostgreSQL da
   - Search/filter by role or status.
   - Create user, edit role (`ADMIN` / `EXAMINER` / `CANDIDATE`), toggle `isActive` (immediately blocks deactivated users on backend), reset password.
   - View recent platform `AuditLog` entries (`/admin/audit`).
+  - View system health and a global read-only examination overview; examination mutation remains examiner-owned.
 
 ---
 
