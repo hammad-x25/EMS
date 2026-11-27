@@ -1,18 +1,30 @@
 "use client";
 
 import { PointerEvent, useEffect, useRef, useState } from "react";
-import { Eraser, PenLine, RotateCcw, Trash2, X } from "lucide-react";
+import { Eraser, PenLine, RotateCcw, Trash2 } from "lucide-react";
+import { Drawer } from "@/components/ui/Drawer";
+import { Tabs } from "@/components/ui/Tabs";
 import { loadScratchpad, saveScratchpad } from "@/lib/offline-queue";
 
 type Tool = "pen" | "eraser";
+type ScratchpadTab = "drawing" | "notes";
 
-export function ScratchpadDrawer({ attemptId, open, onClose }: { attemptId: string; open: boolean; onClose: () => void }) {
+export function ScratchpadDrawer({
+  attemptId,
+  open,
+  onClose,
+}: {
+  attemptId: string;
+  open: boolean;
+  onClose: () => void;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawingRef = useRef(false);
   const undoStackRef = useRef<string[]>([]);
   const notesRef = useRef("");
+  const notesSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const drawingDataRef = useRef<string | null>(null);
-  const [tab, setTab] = useState<"drawing" | "notes">("drawing");
+  const [tab, setTab] = useState<ScratchpadTab>("drawing");
   const [tool, setTool] = useState<Tool>("pen");
   const [notes, setNotes] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -38,17 +50,41 @@ export function ScratchpadDrawer({ attemptId, open, onClose }: { attemptId: stri
       setNotes(savedNotes);
       setLoaded(true);
     });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [attemptId]);
 
   useEffect(() => {
     if (open && tab === "drawing" && loaded) paintDataUrl(drawingDataRef.current);
   }, [loaded, open, tab]);
 
+  useEffect(() => {
+    return () => {
+      if (notesSaveTimerRef.current) {
+        clearTimeout(notesSaveTimerRef.current);
+        notesSaveTimerRef.current = null;
+        void saveScratchpad(attemptId, {
+          notes: notesRef.current,
+          drawingDataUrl: drawingDataRef.current,
+        });
+      }
+    };
+  }, [attemptId]);
+
   async function persist(drawingDataUrl = drawingDataRef.current, noteText = notesRef.current) {
     drawingDataRef.current = drawingDataUrl;
     notesRef.current = noteText;
     await saveScratchpad(attemptId, { notes: noteText, drawingDataUrl });
+  }
+
+  function scheduleNotesPersist(noteText: string) {
+    notesRef.current = noteText;
+    if (notesSaveTimerRef.current) clearTimeout(notesSaveTimerRef.current);
+    notesSaveTimerRef.current = setTimeout(() => {
+      notesSaveTimerRef.current = null;
+      void persist(drawingDataRef.current, notesRef.current);
+    }, 200);
   }
 
   function point(event: PointerEvent<HTMLCanvasElement>) {
@@ -109,56 +145,91 @@ export function ScratchpadDrawer({ attemptId, open, onClose }: { attemptId: stri
     void persist(null);
   }
 
-  if (!open) return null;
+  function handleClose() {
+    if (notesSaveTimerRef.current) {
+      clearTimeout(notesSaveTimerRef.current);
+      notesSaveTimerRef.current = null;
+      void persist(drawingDataRef.current, notesRef.current);
+    }
+    onClose();
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/50" role="dialog" aria-modal="true" aria-labelledby="scratchpad-title">
-      <section className="flex h-full w-full max-w-2xl flex-col bg-white shadow-2xl">
-        <div className="flex items-start justify-between border-b border-slate-200 p-5">
-          <div><p className="eyebrow">Persists on this device</p><h2 className="mt-1 text-xl font-black" id="scratchpad-title">Digital scratchpad</h2></div>
-          <button aria-label="Close scratchpad" className="rounded-lg p-2 hover:bg-slate-100" onClick={onClose} type="button"><X size={20} /></button>
-        </div>
-        <div className="flex gap-2 border-b border-slate-200 px-5 py-3">
-          <button className={tab === "drawing" ? "btn-primary" : "btn-secondary"} onClick={() => setTab("drawing")} type="button">Freehand canvas</button>
-          <button className={tab === "notes" ? "btn-primary" : "btn-secondary"} onClick={() => setTab("notes")} type="button">Quick notes</button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-5">
-          {tab === "drawing" ? (
-            <div>
-              <div className="mb-3 flex flex-wrap gap-2">
-                <button className={tool === "pen" ? "btn-primary" : "btn-secondary"} onClick={() => setTool("pen")} type="button"><PenLine size={15} /> Pen</button>
-                <button className={tool === "eraser" ? "btn-primary" : "btn-secondary"} onClick={() => setTool("eraser")} type="button"><Eraser size={15} /> Eraser</button>
-                <button className="btn-secondary" onClick={undo} type="button"><RotateCcw size={15} /> Undo</button>
-                <button className="btn-danger" onClick={clearDrawing} type="button"><Trash2 size={15} /> Clear</button>
-              </div>
-              <canvas
-                aria-label="Freehand scratchpad canvas"
-                className="w-full touch-none rounded-xl border-2 border-slate-300 bg-white"
-                height={420}
-                onPointerDown={beginStroke}
-                onPointerMove={continueStroke}
-                onPointerUp={endStroke}
-                onPointerCancel={endStroke}
-                ref={canvasRef}
-                width={720}
-              />
+    <Drawer
+      closeLabel="Close scratchpad"
+      eyebrow="Persists on this device"
+      maxWidthClass="max-w-2xl"
+      onClose={handleClose}
+      open={open}
+      title="Digital scratchpad"
+    >
+      <div className="space-y-4">
+        <Tabs
+          activeId={tab}
+          ariaLabel="Scratchpad mode"
+          idPrefix="scratchpad"
+          items={[
+            { id: "drawing", label: "Freehand canvas" },
+            { id: "notes", label: "Quick notes" },
+          ]}
+          onSelect={setTab}
+        />
+
+        {tab === "drawing" ? (
+          <div id="scratchpad-panel-drawing" role="tabpanel">
+            <div className="mb-3 flex flex-wrap gap-2">
+              <button
+                className={tool === "pen" ? "btn-primary h-9 px-3 text-xs" : "btn-secondary h-9 px-3 text-xs"}
+                onClick={() => setTool("pen")}
+                type="button"
+              >
+                <PenLine size={14} /> Pen
+              </button>
+              <button
+                className={tool === "eraser" ? "btn-primary h-9 px-3 text-xs" : "btn-secondary h-9 px-3 text-xs"}
+                onClick={() => setTool("eraser")}
+                type="button"
+              >
+                <Eraser size={14} /> Eraser
+              </button>
+              <button className="btn-secondary h-9 px-3 text-xs" onClick={undo} type="button">
+                <RotateCcw size={14} /> Undo
+              </button>
+              <button className="btn-danger h-9 px-3 text-xs" onClick={clearDrawing} type="button">
+                <Trash2 size={14} /> Clear
+              </button>
             </div>
-          ) : (
-            <label className="block text-sm font-black">Notes and rough calculations
+            <canvas
+              aria-label="Freehand scratchpad canvas"
+              className="w-full touch-none rounded-lg border-2 border-[var(--border-strong)] bg-white"
+              height={420}
+              onPointerCancel={endStroke}
+              onPointerDown={beginStroke}
+              onPointerMove={continueStroke}
+              onPointerUp={endStroke}
+              ref={canvasRef}
+              width={720}
+            />
+          </div>
+        ) : (
+          <div id="scratchpad-panel-notes" role="tabpanel">
+            <label className="block text-sm font-bold text-[var(--text-primary)]">
+              Notes and rough calculations
               <textarea
-                className="field mt-2 min-h-[420px] resize-y font-mono leading-7"
+                className="field font-mono-tabular mt-2 min-h-[420px] resize-y leading-7"
+                onBlur={() => void persist(drawingDataRef.current, notesRef.current)}
                 onChange={(event) => {
                   const value = event.target.value;
-                  notesRef.current = value;
                   setNotes(value);
-                  void persist(drawingDataRef.current, value);
+                  scheduleNotesPersist(value);
                 }}
                 placeholder="Type notes, formulae, or intermediate calculations here…"
                 value={notes}
               />
             </label>
-          )}
-        </div>
-      </section>
-    </div>
+          </div>
+        )}
+      </div>
+    </Drawer>
   );
 }
