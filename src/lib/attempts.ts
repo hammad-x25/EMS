@@ -12,6 +12,7 @@ import { db } from "@/lib/db";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
 import { reconcileExamStatuses } from "@/lib/exam-lifecycle";
 import { deriveAttemptSeed, generateBalancedPaper, type PoolQuestion } from "@/lib/fairness";
+import { recomputeAttemptTotals } from "@/lib/grading";
 import { parseCorrectIdsJson, parseOptionsJson, type QuestionOption } from "@/lib/question-bank";
 
 export const AnswerMutationSchema = z.object({
@@ -557,6 +558,7 @@ export async function submitAttempt(actor: SessionUser, attemptId: string, now =
       where: { id: attempt.id, status: AttemptStatus.IN_PROGRESS },
       data: { status: targetStatus, submittedAt: now },
     });
+    if (!attempt.isSandbox) await recomputeAttemptTotals(attempt.id);
   }
   return getAttempt(actor, attemptId, now);
 }
