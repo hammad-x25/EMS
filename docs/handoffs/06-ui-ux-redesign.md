@@ -16,7 +16,8 @@
 - `5464681` — `feat(plan-6): modularize exam builder, add breadcrumbs, drawer/modal a11y, and examiner filters`
 - `db21338` — `feat(plan-6): fix heartbeat timer churn, debounced written sync, modal submit errors, and theme a11y`
 - `19c1bc1` — `feat(plan-6): refine responsive tables, accessible label binding, sandbox reset recovery, and UI E2E coverage`
-- *(Pending final docs commit adding `docs/WORK_DONE.md` & `docs/handoffs/06-ui-ux-redesign.md`)*
+- `e2f137c` — `docs(plan-6): update WORK_DONE and add UI/UX redesign handoff`
+- `ce67fa0` — `feat(plan-6): remove login demo quick-fill buttons, clean copy, and fix sync/heartbeat lock`
 
 ---
 
@@ -38,6 +39,9 @@
 - [src/components/examiner/ExamBuilderWorkspace.tsx](../../src/components/examiner/ExamBuilderWorkspace.tsx) & [src/components/examiner/builder/*](../../src/components/examiner/builder): Split monolithic builder into `DetailsTab`, `CompositionTab`, `FairnessTab`, `EnrollmentsTab`, and `PublishTab` with unsaved-changes confirmation and transition/unenroll confirm dialogs.
 - [src/components/examiner/MonitorDashboard.tsx](../../src/components/examiner/MonitorDashboard.tsx), [GradingWorkbench.tsx](../../src/components/examiner/GradingWorkbench.tsx), [analytics/page.tsx](../../src/app/examiner/exams/%5Bid%5D/analytics/page.tsx), [DisputeWorkbench.tsx](../../src/components/examiner/DisputeWorkbench.tsx): Added `<Breadcrumb>` return paths, search & status/pending filters, accessible drawer/modal overlays, and explicit inline reasons when outage extension is disabled.
 
+### Login & Security UX Alignment
+- [src/app/login/page.tsx](../../src/app/login/page.tsx) & [src/components/LoginForm.tsx](../../src/components/LoginForm.tsx): Removed demo quick-fill role buttons and hardcoded seeded credentials from `/login` client code (retaining test accounts in `README.md` per Section 07 of the problem statement), and replaced technical session-token jargon with calm institutional onboarding copy.
+
 ### High-Stakes Candidate Workflow & Exam Workspace Reliability
 - [src/lib/exam-workspace-helpers.ts](../../src/lib/exam-workspace-helpers.ts) & [src/components/exam/ExamWorkspace.tsx](../../src/components/exam/ExamWorkspace.tsx):
   - Fixed heartbeat/reconnect `useEffect` dependency churn using refs (`syncStateRef`, `queuedCountRef`) so 10s heartbeats run steadily regardless of typing speed.
@@ -53,10 +57,11 @@
 
 ## 3. Approved Decisions & Specification Alignment
 
-Recorded in [docs/DECISIONS.md](../DECISIONS.md) (#15–17):
+Recorded in [docs/DECISIONS.md](../DECISIONS.md) (#15–18):
 1. Backward-compatible optional `?page=&limit=&search=` pagination on read-only GET endpoints (`/api/admin/users`, `/api/questions`, `/api/admin/audit`).
 2. Zero-network CSS sans + tabular monospace typography stack (offline/Docker safe).
 3. Non-intrusive `aria-live="polite"` and banner cues at `5m` / `1m` remaining when `hideTimer` is active.
+4. Clean institutional login form with zero quick-fill role buttons or embedded demo passwords on `/login`.
 
 All non-negotiable security & business invariants from `AGENTS.md` (RBAC, zero answer-key leakage, immutable/effective deadlines, monotonic `clientSeq`, `isSandbox: false`, non-conclusive monitoring, privacy-safe `/verify/[code]`) remain untouched.
 
@@ -64,7 +69,7 @@ All non-negotiable security & business invariants from `AGENTS.md` (RBAC, zero a
 
 ## 4. Verification Results
 
-Executed cleanly after the final source edit (`19c1bc1`):
+Executed cleanly after the final source edits (`ce67fa0` / `e2e/exam-lifecycle.spec.ts`):
 
 | Check | Outcome | Details |
 | --- | --- | --- |
@@ -72,7 +77,7 @@ Executed cleanly after the final source edit (`19c1bc1`):
 | `npm run lint` | **Passed** | `eslint . --ext .js,.mjs,.ts,.tsx --max-warnings=0` — 0 warnings |
 | `npx vitest run` | **Passed** | 15 test files, 50/50 tests passed (including new `form-errors.test.ts`, `pagination.test.ts`, `exam-workspace-helpers.test.ts`) |
 | `npm run build` | **Passed** | Next.js 15.5.29 production standalone build compiled 18 static + all dynamic routes |
-| `npx playwright test` | **Passed** | 2/2 suites passed (56.1s): `e2e/exam-lifecycle.spec.ts` (42.1s) + `e2e/ui-ux-accessibility.spec.ts` (8.7s covering 375px mobile drawer & overflow, confirm dialog Escape cancel, audit pagination, breadcrumbs, Dark theme drawer propagation, modal focus restoration, shortcut blocking inside drawer, offline modal error display) |
+| `npx playwright test` | **Passed** | 2/2 suites passed (`1.0m`): `e2e/exam-lifecycle.spec.ts` (45.2s) + `e2e/ui-ux-accessibility.spec.ts` (10.8s) |
 
 ### Skipped / Deferred Checks & Known Limitations
 - **Automated Axe-core audit (`@axe-core/playwright`)**: Not installed per zero-unrequested-dependency discipline; WCAG behaviors (focus restoration, Escape closing, `aria-current`, live regions, mobile overflow, Dark mode surface inheritance) were verified directly via Playwright E2E assertions instead.

@@ -14,12 +14,14 @@
 - `5464681` — Modularized `ExamBuilderWorkspace` (`src/components/examiner/builder/*`) with `role="tablist"` tabs & unsaved-edit confirmation, `<Breadcrumb>` wayfinding across Monitor/Grading/Analytics, `<Drawer>` outage explanation, and `DisputeWorkbench` field validation
 - `db21338` — Decoupled `ExamWorkspace` heartbeat/reconnect timer refs (`C-01`), debounced written-answer sync with guaranteed navigation/blur/submit flush (`C-02`), inline `ReviewSubmitModal` errors + detailed finalization receipt (`C-03`), guarded `N`/`P`/`M` shortcuts (`H-03`), `aria-live` announcements & `5m`/`1m` deadline milestone cues (`H-04`), pre-start readiness confirmation (`H-05`), and public verify code lookup (`L-02`)
 - `19c1bc1` — Single-DOM responsive CSS tables (zero duplicated interactive nodes), `FormField` `htmlFor` semantic password toggle binding, sandbox reset recovery button on finalized error view, and Playwright UI/UX accessibility & regression suite (`e2e/ui-ux-accessibility.spec.ts`)
+- `e2f137c` — Plan 6 work log and handoff documentation
+- `ce67fa0` — Removed login demo quick-fill buttons and technical token copy from `/login` (recorded in [DECISIONS.md](./DECISIONS.md) #18), and hardened `ExamWorkspace` `flushQueue` / `heartbeat` concurrency locking against Postgres `P2034` write conflicts
 
 ### Completed requirements
 
 - Comprehensive 12-dimension UI/UX audit and approved phased improvement plan documented in [06-ui-ux-audit-and-improvement-plan.md](./06-ui-ux-audit-and-improvement-plan.md).
 - Zero backend RBAC, Prisma schema, timing/deadline, sandbox-isolation, or answer-key leakage invariants altered; read-only GET pagination is backward-compatible when parameters are omitted.
-- Full-stack verification: `npm run typecheck`, `npm run lint` (0 warnings), `npx vitest run` (15 files, 50/50 tests passing), `npm run build` (standalone Next.js build cleanly compiling 18 static + all dynamic routes), and `npx playwright test` (2/2 suites passing across desktop and 375x812 mobile viewports).
+- Full-stack verification: `npm run typecheck`, `npm run lint` (0 warnings), `npx vitest run` (15 files, 50/50 tests passing), `npm run build` (standalone Next.js build cleanly compiling 18 static + all dynamic routes), and `npx playwright test` (2/2 suites passing cleanly after removing login quick-fill buttons).
 
 See [handoffs/06-ui-ux-redesign.md](./handoffs/06-ui-ux-redesign.md) for detailed component inventory, approved decisions, test outcomes, known limitations, and follow-up items.
 
