@@ -4,7 +4,7 @@ import { DisputeStatus } from "@prisma/client";
 import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
 import { CheckCircle2, Clock, ExternalLink, Scale, ShieldAlert } from "lucide-react";
-import type { DisputeDto } from "@/lib/disputes";
+import type { DisputeDto } from "@/lib/dispute-types";
 
 type OutcomeChoice = "RESOLVED_UPHELD" | "RESOLVED_ADJUSTED" | "REJECTED";
 

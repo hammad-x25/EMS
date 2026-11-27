@@ -4,7 +4,7 @@ import { DisputeStatus } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { CheckCircle2, Clock, MessageSquareWarning, Plus, X } from "lucide-react";
-import { DISPUTE_CATEGORIES, type DisputeCategory, type DisputeDto } from "@/lib/disputes";
+import { DISPUTE_CATEGORIES, type DisputeCategory, type DisputeDto } from "@/lib/dispute-types";
 
 const CATEGORY_LABELS: Record<DisputeCategory, string> = {
   GRADING_ERROR: "Grading Error",
