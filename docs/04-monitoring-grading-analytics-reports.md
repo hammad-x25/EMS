@@ -22,7 +22,7 @@ Implement real-time **Examination Monitoring & Announcements** (3.6), the **Obje
 - Live proctoring dashboard (strictly `isSandbox: false`):
   - Active candidate table: Progress (`8/15 answered`), Connection state (`Online`, `Gap 22s`), Remaining time, Incident indicator count.
   - Incident Drawer: chronological timeline (`TAB_BLUR`, `HEARTBEAT_LOST`, `RECONNECTED`) with explicit banner: *"Monitoring indicators are review signals only and do not constitute conclusive proof of misconduct."*
-  - **Grant Audited Time Extension (5.3)**: Examiner can add `+N` minutes to a candidate who suffered a verified `HEARTBEAT_LOST` outage, requiring a written justification logged to `AuditLog` and pushing a live `TIME_EXTENDED` SSE event to the candidate's timer.
+  - **Grant Audited Time Extension (5.3)**: Examiner can add `+N` minutes to a candidate who suffered a verified `HEARTBEAT_LOST` outage, requiring a written justification logged to `AuditLog` and pushing a live `TIME_EXTENDED` SSE event to the candidate's timer. The original `hardDeadlineAt` is retained; the server calculates `effectiveDeadlineAt = hardDeadlineAt + timeExtensionMinutes`.
   - Live Announcement composer broadcasting immediately to all active workspaces.
 
 ---

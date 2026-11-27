@@ -4,6 +4,8 @@
 
 Build **AegisExam**, a production-grade, full-stack **Secure Examination Management System** satisfying 100% of the **Core Functional Requirements (3.1–3.8)**, all eight **Secondary Features (4.1–4.8)**, flagship **Open Innovation Challenges (5.2, 5.3, 5.4)**, and **Technical/Submission Constraints (06–07)** defined in `Web-e-Thon Problem Statement.pdf`.
 
+Approved resolutions to specification ambiguities are recorded in [DECISIONS.md](./DECISIONS.md) and take precedence over conflicting wording below.
+
 Following a **Spec-Driven Software Development** workflow, this document serves as the single architectural source of truth (data model, security invariants, API contracts, UI/UX system, and rubric traceability) and divides execution into **five self-contained, verifiable Implementation Plans**:
 
 1. **[Plan 1: Foundation, Auth, RBAC & Admin Operations](./01-foundation-auth-rbac.md)**
@@ -215,6 +217,7 @@ model Exam {
   useStratifiedBlueprint Boolean            @default(false)
   multiSelectRule        MultiSelectScoring @default(PARTIAL_NO_NEGATIVE)
   negativeMarkRatio      Float              @default(0) // e.g., 0.25 for wrong MCQ
+  revealAnswersAfterPublish Boolean          @default(false)
   resultsPublishedAt     DateTime?
   createdById            String
   createdBy              User               @relation("ExaminerExams", fields: [createdById], references: [id])
@@ -399,11 +402,12 @@ model AuditLog {
 
 ## Security, RBAC & Data Integrity Invariants
 
-1. **Backend-Enforced RBAC**: Every `/api/*` route calls `requireSession(allowedRoles)` and verifies ownership (`exam.createdById === session.userId || session.role === 'ADMIN'` or `attempt.userId === session.userId`).
-2. **Zero Answer-Key Leakage**: DTO serializers strip `correctIdsJson`, `correctIdsSnap`, and `explanation` from all Candidate endpoints until `attempt.status === 'PUBLISHED'` (and `exam.resultsPublishedAt !== null`).
+1. **Backend-Enforced RBAC**: Every protected `/api/*` route calls `requireAuth(allowedRoles)` and verifies ownership (`exam.createdById === session.userId || session.role === 'ADMIN'` or `attempt.userId === session.userId`).
+2. **Zero Answer-Key Leakage**: DTO serializers strip `correctIdsJson`, `correctIdsSnap`, and `explanation` from Candidate endpoints. Published-result endpoints may include answers and explanations only when `Exam.revealAnswersAfterPublish` is enabled.
 3. **Server-Authoritative Timing**:
    - `hardDeadlineAt = min(startedAt + durationMinutes, scheduledEnd)` computed strictly on PostgreSQL/Node server time.
-   - Any answer mutation arriving after `hardDeadlineAt + 5s` (network grace buffer for in-flight packets whose `capturedAt` or arrival precedes finalization) is rejected with `409 ATTEMPT_EXPIRED` and triggers auto-finalization.
+   - `effectiveDeadlineAt = hardDeadlineAt + timeExtensionMinutes`; every extension is justified in `AuditLog`.
+   - Any answer mutation arriving after `effectiveDeadlineAt + 5s` (network grace buffer for in-flight packets whose `capturedAt` or arrival precedes finalization) is rejected with `409 ATTEMPT_EXPIRED` and triggers auto-finalization.
 4. **Duplicate Submission Prevention**: PostgreSQL transactional update `WHERE id = $1 AND status = 'IN_PROGRESS'` guarantees an attempt can be finalized once; subsequent `/submit` calls are idempotent and return the existing finalized attempt.
 5. **Sandbox Isolation**: All analytics, monitoring, grading queues, and enrollment counts filter `isSandbox: false`.
 6. **Non-Conclusive Monitoring Policy (Req 3.6)**: Behavioral/network events use neutral terminology (`Review Signal`, `Connectivity Gap`) and never auto-invalidate an attempt.
